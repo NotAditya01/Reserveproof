@@ -1,0 +1,102 @@
+{
+  "compiler-version": "0.29.0",
+  "language-version": "0.21.0",
+  "runtime-version": "0.14.0",
+  "circuits": [
+    {
+      "name": "proveReserveStatus",
+      "pure": false,
+      "proof": true,
+      "arguments": [
+        {
+          "name": "minTierThreshold",
+          "type": {
+            "type-name": "Uint",
+            "maxval": 65535
+          }
+        },
+        {
+          "name": "requestId",
+          "type": {
+            "type-name": "Bytes",
+            "length": 32
+          }
+        }
+      ],
+      "result-type": {
+        "type-name": "Tuple",
+        "types": [
+        ]
+      }
+    },
+    {
+      "name": "getVerifiedResult",
+      "pure": false,
+      "proof": true,
+      "arguments": [
+        {
+          "name": "requestId",
+          "type": {
+            "type-name": "Bytes",
+            "length": 32
+          }
+        }
+      ],
+      "result-type": {
+        "type-name": "Struct",
+        "name": "ReserveStatusResult",
+        "elements": [
+          {
+            "name": "scoreCommitment",
+            "type": {
+              "type-name": "Bytes",
+              "length": 32
+            }
+          },
+          {
+            "name": "tier",
+            "type": {
+              "type-name": "Bytes",
+              "length": 9
+            }
+          },
+          {
+            "name": "verified",
+            "type": {
+              "type-name": "Boolean"
+            }
+          }
+        ]
+      }
+    }
+  ],
+  "witnesses": [
+    {
+      "name": "getReserveWitness",
+      "arguments": [
+      ],
+      "result type": {
+        "type-name": "Struct",
+        "name": "ReserveWitness",
+        "elements": [
+          {
+            "name": "score",
+            "type": {
+              "type-name": "Uint",
+              "maxval": 65535
+            }
+          },
+          {
+            "name": "salt",
+            "type": {
+              "type-name": "Bytes",
+              "length": 32
+            }
+          }
+        ]
+      }
+    }
+  ],
+  "contracts": [
+  ]
+}
