@@ -1,0 +1,17 @@
+{
+  "name": "ep-contract",
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "compile": "compact compile src/ep-contract.compact managed/ep-contract",
+    "build": "tsc",
+    "test": "echo 'No tests yet' && exit 0"
+  },
+  "dependencies": {
+    "@midnight-ntwrk/compact-runtime": "^0.14.0"
+  },
+  "devDependencies": {
+    "@types/node": "^24.4.0",
+    "typescript": "^5.9.2"
+  }
+}

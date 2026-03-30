@@ -1,0 +1,59 @@
+pragma language_version 0.21;
+
+import CompactStandardLibrary;
+
+// Private reserve ratio data supplied off-chain via witness.
+struct ReserveWitness {
+  score: Uint<16>;
+  salt: Bytes<32>;
+}
+
+// What gets anchored on-chain: commitment + solvency status + validity only.
+struct ReserveStatusResult {
+  scoreCommitment: Bytes<32>;
+  tier: Bytes<9>;
+  verified: Boolean;
+}
+
+witness getReserveWitness(): ReserveWitness;
+
+// Map<ProofId, ReserveStatusResult>
+export ledger verifications: Map<Bytes<32>, ReserveStatusResult>;
+
+circuit tierLabel(score: Uint<16>): Bytes<9> {
+  if (score >= 740) {
+    return pad(9, "SOLVENT");
+  }
+  if (score >= 580) {
+    return pad(9, "WARNING");
+  }
+  return pad(9, "INSOLVENT");
+}
+
+// Generate circuit: prove only that reserve ratio status satisfies threshold band.
+export circuit proveReserveStatus(minTierThreshold: Uint<16>, requestId: Bytes<32>): [] {
+  const reserve = getReserveWitness();
+
+  assert(reserve.score >= 300, "Score too low");
+  assert(reserve.score <= 850, "Score too high");
+  assert(
+    minTierThreshold == 300 || minTierThreshold == 580 || minTierThreshold == 740,
+    "Invalid tier threshold"
+  );
+  assert(reserve.score >= minTierThreshold, "Score below requested tier threshold");
+
+  const commitment = persistentHash<ReserveWitness>(reserve);
+
+  const result = ReserveStatusResult {
+    scoreCommitment: commitment,
+    tier: tierLabel(reserve.score),
+    verified: true,
+  };
+
+  verifications.insert(disclose(requestId), disclose(result));
+}
+
+// Public verification circuit
+export circuit getVerifiedResult(requestId: Bytes<32>): ReserveStatusResult {
+  return verifications.lookup(disclose(requestId));
+}

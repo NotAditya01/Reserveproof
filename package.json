@@ -1,0 +1,21 @@
+{
+  "name": "reserveproof",
+  "description": "Privacy-preserving proof of solvency on Midnight Network",
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "compile": "compact compile contracts/src/ep-contract.compact contracts/managed/ep-contract",
+    "dev:frontend": "npm --prefix frontend run dev",
+    "dev:backend": "npm --prefix backend run dev",
+    "dev:clean": "concurrently --kill-others-on-fail --names \"API,WEB\" --prefix \"[{name}]\" --prefix-colors \"cyan,magenta\" \"npm --silent run dev:backend\" \"npm --silent run dev:frontend\"",
+    "dev": "npm run dev:clean",
+    "start-proof-server": "docker run -p 6300:6300 midnightntwrk/proof-server:7.0.0 -- midnight-proof-server -v",
+    "build:frontend": "cd frontend && npm run build",
+    "build:backend": "cd backend && npm run build",
+    "install:all": "npm install && cd frontend && npm install && cd ../backend && npm install",
+    "test": "echo 'No tests yet' && exit 0"
+  },
+  "devDependencies": {
+    "concurrently": "^7.6.0"
+  }
+}
