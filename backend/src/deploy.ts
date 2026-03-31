@@ -12,6 +12,7 @@
  */
 
 import { config } from 'dotenv';
+import * as crypto from 'node:crypto';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -34,9 +35,22 @@ function setEnvValue(key: string, value: string): void {
   fs.writeFileSync(envPath, content, 'utf-8');
 }
 
+function getOrCreatePrivateStatePassword(): string {
+  let password = process.env.PRIVATE_STATE_PASSWORD ?? '';
+  if (password.length < 16) {
+    password = crypto.randomBytes(16).toString('hex');
+    setEnvValue('PRIVATE_STATE_PASSWORD', password);
+    process.env.PRIVATE_STATE_PASSWORD = password;
+  }
+  return password;
+}
+
 // ─── Main ──────────────────────────────────────────────────────────────────────
 
 async function main() {
+  // Ensure PRIVATE_STATE_PASSWORD exists before loading Midnight SDK modules
+  getOrCreatePrivateStatePassword();
+
   // Dynamic imports — these must happen AFTER dotenv has loaded
   const Rx = await import('rxjs');
   const { deployContract } = await import('@midnight-ntwrk/midnight-js-contracts');

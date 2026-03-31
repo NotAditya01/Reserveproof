@@ -47,6 +47,43 @@ export const CONFIG = {
   proofServer: requireEnv('PROVE_SERVER_URL'),
 };
 
+const privateStatePassword = process.env.PRIVATE_STATE_PASSWORD;
+if (!privateStatePassword || privateStatePassword.length < 16) {
+  throw new Error('Missing required environment variable: PRIVATE_STATE_PASSWORD');
+}
+
+const buildShieldedConfig = (cfg: typeof CONFIG) => ({
+  networkId: getNetworkId(),
+  indexerClientConnection: {
+    indexerHttpUrl: cfg.indexer,
+    indexerWsUrl: cfg.indexerWS,
+  },
+  provingServerUrl: new URL(cfg.proofServer),
+  relayURL: new URL(cfg.node.replace(/^http/, 'ws')),
+});
+
+const buildUnshieldedConfig = (cfg: typeof CONFIG) => ({
+  networkId: getNetworkId(),
+  indexerClientConnection: {
+    indexerHttpUrl: cfg.indexer,
+    indexerWsUrl: cfg.indexerWS,
+  },
+  txHistoryStorage: new InMemoryTransactionHistoryStorage(),
+});
+
+const buildDustConfig = (cfg: typeof CONFIG) => ({
+  networkId: getNetworkId(),
+  costParameters: {
+    additionalFeeOverhead: 300_000_000_000_000n,
+    feeBlocksMargin: 5,
+  },
+  indexerClientConnection: {
+    indexerHttpUrl: cfg.indexer,
+    indexerWsUrl: cfg.indexerWS,
+  },
+  provingServerUrl: new URL(cfg.proofServer),
+  relayURL: new URL(cfg.node.replace(/^http/, 'ws')),
+});
 
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -77,40 +114,24 @@ export function deriveKeys(seed: string) {
 
 export async function createMidnightWallet(seed: string) {
   const keys = deriveKeys(seed);
-  const networkId = getNetworkId();
 
   const shieldedSecretKeys = ledger.ZswapSecretKeys.fromSeed(keys[Roles.Zswap]);
   const dustSecretKey = ledger.DustSecretKey.fromSeed(keys[Roles.Dust]);
-  const unshieldedKeystore = createKeystore(keys[Roles.NightExternal], networkId);
+  const unshieldedKeystore = createKeystore(keys[Roles.NightExternal], getNetworkId());
 
   const walletConfig = {
-    networkId,
-    indexerClientConnection: {
-      indexerHttpUrl: CONFIG.indexer,
-      indexerWsUrl: CONFIG.indexerWS,
-    },
-    provingServerUrl: new URL(CONFIG.proofServer),
-    relayURL: new URL(CONFIG.node.replace(/^http/, 'ws')),
+    ...buildShieldedConfig(CONFIG),
+    ...buildUnshieldedConfig(CONFIG),
+    ...buildDustConfig(CONFIG),
   };
 
-  const shieldedWallet = ShieldedWallet(walletConfig)
-    .startWithSecretKeys(shieldedSecretKeys);
-
-  const unshieldedWallet = UnshieldedWallet({
-    networkId,
-    indexerClientConnection: walletConfig.indexerClientConnection,
-    txHistoryStorage: new InMemoryTransactionHistoryStorage(),
-  }).startWithPublicKey(PublicKey.fromKeyStore(unshieldedKeystore));
-
-  const dustWallet = DustWallet({
-    ...walletConfig,
-    costParameters: {
-      additionalFeeOverhead: 300_000_000_000_000n,
-      feeBlocksMargin: 5,
-    },
-  }).startWithSecretKey(dustSecretKey, ledger.LedgerParameters.initialParameters().dust);
-
-  const wallet = new WalletFacade(shieldedWallet, unshieldedWallet, dustWallet);
+  const wallet = await WalletFacade.init({
+    configuration: walletConfig,
+    shielded: (cfg) => ShieldedWallet(cfg).startWithSecretKeys(shieldedSecretKeys),
+    unshielded: (cfg) => UnshieldedWallet(cfg).startWithPublicKey(PublicKey.fromKeyStore(unshieldedKeystore)),
+    dust: (cfg) =>
+      DustWallet(cfg).startWithSecretKey(dustSecretKey, ledger.LedgerParameters.initialParameters().dust),
+  });
   await wallet.start(shieldedSecretKeys, dustSecretKey);
 
   return { wallet, shieldedSecretKeys, dustSecretKey, unshieldedKeystore };
@@ -205,6 +226,8 @@ export async function createProviders(
   return {
     privateStateProvider: levelPrivateStateProvider({
       privateStateStoreName: 'ep-contract-state',
+      privateStoragePasswordProvider: () => privateStatePassword,
+      accountId: String(walletCtx.unshieldedKeystore.getBech32Address()),
       walletProvider,
     }),
     publicDataProvider: indexerPublicDataProvider(CONFIG.indexer, CONFIG.indexerWS),
