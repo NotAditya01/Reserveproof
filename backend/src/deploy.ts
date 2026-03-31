@@ -92,7 +92,7 @@ async function main() {
   console.log('\n  ✅ Wallet synced!\n');
 
   const address = walletCtx.unshieldedKeystore.getBech32Address();
-  const { unshieldedToken } = await import('@midnight-ntwrk/ledger-v7');
+  const { unshieldedToken } = await import('@midnight-ntwrk/ledger-v8');
   const balance = (state as any).unshielded?.balances?.[unshieldedToken().raw] ?? 0n;
   console.log(`  Wallet Address: ${address}`);
   console.log(`  Balance: ${balance.toLocaleString()} tNIGHT\n`);
