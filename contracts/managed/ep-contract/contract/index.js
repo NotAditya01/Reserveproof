@@ -1,5 +1,5 @@
 import * as __compactRuntime from '@midnight-ntwrk/compact-runtime';
-__compactRuntime.checkRuntimeVersion('0.14.0');
+__compactRuntime.checkRuntimeVersion('0.15.0');
 
 const _descriptor_0 = new __compactRuntime.CompactTypeBytes(32);
 
@@ -185,6 +185,10 @@ export class Contract {
       proveReserveStatus: this.circuits.proveReserveStatus,
       getVerifiedResult: this.circuits.getVerifiedResult
     };
+    this.provableCircuits = {
+      proveReserveStatus: this.circuits.proveReserveStatus,
+      getVerifiedResult: this.circuits.getVerifiedResult
+    };
   }
   initialState(...args_0) {
     if (args_0.length !== 1) {
@@ -272,15 +276,20 @@ export class Contract {
                         requestId_0)
   {
     const reserve_0 = this._getReserveWitness_0(context, partialProofData);
-    __compactRuntime.assert(reserve_0.score >= 300n, 'Score too low');
-    __compactRuntime.assert(reserve_0.score <= 850n, 'Score too high');
+    let t_0;
+    __compactRuntime.assert((t_0 = reserve_0.score, t_0 >= 300n),
+                            'Score too low');
+    let t_1;
+    __compactRuntime.assert((t_1 = reserve_0.score, t_1 <= 850n),
+                            'Score too high');
     __compactRuntime.assert(this._equal_0(minTierThreshold_0, 300n)
                             ||
                             this._equal_1(minTierThreshold_0, 580n)
                             ||
                             this._equal_2(minTierThreshold_0, 740n),
                             'Invalid tier threshold');
-    __compactRuntime.assert(reserve_0.score >= minTierThreshold_0,
+    let t_2;
+    __compactRuntime.assert((t_2 = reserve_0.score, t_2 >= minTierThreshold_0),
                             'Score below requested tier threshold');
     const commitment_0 = this._persistentHash_0(reserve_0);
     const result_0 = { scoreCommitment: commitment_0,

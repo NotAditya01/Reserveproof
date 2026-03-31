@@ -17,6 +17,17 @@ export type ImpureCircuits<PS> = {
                                                                                   }>;
 }
 
+export type ProvableCircuits<PS> = {
+  proveReserveStatus(context: __compactRuntime.CircuitContext<PS>,
+                     minTierThreshold_0: bigint,
+                     requestId_0: Uint8Array): __compactRuntime.CircuitResults<PS, []>;
+  getVerifiedResult(context: __compactRuntime.CircuitContext<PS>,
+                    requestId_0: Uint8Array): __compactRuntime.CircuitResults<PS, { scoreCommitment: Uint8Array,
+                                                                                    tier: Uint8Array,
+                                                                                    verified: boolean
+                                                                                  }>;
+}
+
 export type PureCircuits = {
 }
 
@@ -52,6 +63,7 @@ export declare class Contract<PS = any, W extends Witnesses<PS> = Witnesses<PS>>
   witnesses: W;
   circuits: Circuits<PS>;
   impureCircuits: ImpureCircuits<PS>;
+  provableCircuits: ProvableCircuits<PS>;
   constructor(witnesses: W);
   initialState(context: __compactRuntime.ConstructorContext<PS>): __compactRuntime.ConstructorResult<PS>;
 }
