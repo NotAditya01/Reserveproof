@@ -44,5 +44,6 @@ Desktop.ini
 # Yarn Integrity file
 .yarn-integrity
 
-# Compiled ZK contracts
-contracts/managed/
+# Compiled ZK contracts — tracked so Codespace-compiled artifacts are available locally
+# contracts/managed/
+
