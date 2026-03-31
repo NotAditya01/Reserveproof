@@ -1,12 +1,8 @@
 {
-  "compiler-version": "0.29.0",
-  "language-version": "0.21.0",
-  "runtime-version": "0.14.0",
   "circuits": [
     {
       "name": "proveReserveStatus",
       "pure": false,
-      "proof": true,
       "arguments": [
         {
           "name": "minTierThreshold",
@@ -32,7 +28,6 @@
     {
       "name": "getVerifiedResult",
       "pure": false,
-      "proof": true,
       "arguments": [
         {
           "name": "requestId",
