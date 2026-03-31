@@ -8,7 +8,7 @@
     "test": "echo 'No tests yet' && exit 0"
   },
   "dependencies": {
-    "@midnight-ntwrk/compact-runtime": "0.14.0"
+    "@midnight-ntwrk/compact-runtime": "0.15.0"
   },
   "devDependencies": {
     "@types/node": "^24.4.0",
