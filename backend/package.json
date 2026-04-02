@@ -4,7 +4,7 @@
   "type": "module",
   "main": "dist/App.js",
   "scripts": {
-    "build": "tsc && cp -r src/managed/ep-contract/keys dist/managed/ep-contract/ && cp src/managed/ep-contract/ep-contract.compact dist/managed/ep-contract/ || true",
+    "build": "tsc && cp -r src/managed dist/ || true",
     "start": "node -r dotenv/config dist/App.js dotenv_config_path=../.env",
     "dev": "tsc --pretty false && node -r dotenv/config dist/App.js dotenv_config_path=../.env",
     "deploy": "tsx src/deploy.ts",
