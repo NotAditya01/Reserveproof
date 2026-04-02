@@ -4,7 +4,7 @@
   "type": "module",
   "main": "dist/App.js",
   "scripts": {
-    "build": "tsc && cp -r src/managed dist/ || true",
+    "build": "tsc && mkdir -p dist/managed && cp -r src/managed/* dist/managed/ || true",
     "start": "node -r dotenv/config dist/App.js dotenv_config_path=../.env",
     "dev": "tsc --pretty false && node -r dotenv/config dist/App.js dotenv_config_path=../.env",
     "deploy": "tsx src/deploy.ts",

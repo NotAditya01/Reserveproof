@@ -17,7 +17,7 @@ import { ShieldedWallet } from '@midnight-ntwrk/wallet-sdk-shielded';
 import { createKeystore, InMemoryTransactionHistoryStorage, PublicKey, UnshieldedWallet, } from '@midnight-ntwrk/wallet-sdk-unshielded-wallet';
 import { toHex } from '@midnight-ntwrk/midnight-js-utils';
 import { mnemonicToSeedSync, validateMnemonic } from '@scure/bip39';
-import { wordlist } from '@scure/bip39/wordlists/english';
+import { wordlist } from '@scure/bip39/wordlists/english.js';
 // Enable WebSocket for GraphQL subscriptions
 // @ts-expect-error Required for wallet sync in Node.js
 globalThis.WebSocket = WebSocket;
@@ -71,10 +71,10 @@ const buildDustConfig = (cfg) => ({
     relayURL: new URL(cfg.node.replace(/^http/, 'ws')),
 });
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-export const zkConfigPath = path.resolve(__dirname, '..', '..', '..', 'contracts', 'managed', 'ep-contract');
+export const zkConfigPath = path.resolve(__dirname, '..', 'managed', 'ep-contract');
 // ─── Contract Loading 
 export async function loadContractModule() {
-    const contractPath = path.resolve(__dirname, '..', '..', 'src', 'managed', 'ep-contract', 'contract', 'index.js');
+    const contractPath = path.resolve(__dirname, '..', 'managed', 'ep-contract', 'contract', 'index.js');
     return await import(pathToFileURL(contractPath).href);
 }
 // ─── Wallet Functions 
