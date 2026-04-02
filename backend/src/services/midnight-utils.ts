@@ -89,12 +89,12 @@ const buildDustConfig = (cfg: typeof CONFIG) => ({
 
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-export const zkConfigPath = path.resolve(__dirname, '..', '..', 'src', 'managed', 'ep-contract');
+export const zkConfigPath = path.resolve(__dirname, '..', 'managed', 'ep-contract');
 
 // ─── Contract Loading 
 
 export async function loadContractModule() {
-  const contractPath = path.resolve(__dirname, '..', '..', 'src', 'managed', 'ep-contract', 'contract', 'index.js');
+  const contractPath = path.resolve(__dirname, '..', 'managed', 'ep-contract', 'contract', 'index.js');
   return await import(pathToFileURL(contractPath).href);
 }
 
