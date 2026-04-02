@@ -9,6 +9,7 @@ import {
   loadContractModule,
   zkConfigPath,
 } from './midnight-utils.js';
+import { BackendWalletManager } from './BackendWalletManager.js';
 
 export interface ProofGenerationParams {
   reserveRatio?: number;
@@ -56,20 +57,9 @@ export class VerificationProof {
       const tierThreshold = params.tierThreshold ?? params.amountToProve ?? 300;
       const thresholdBigInt = BigInt(Math.round(tierThreshold));
 
-      // 1. Create wallet from backend seed
-      console.log('🔑 Creating backend wallet for proof submission...');
-      const walletCtx = await createMidnightWallet(backendSeed);
-
-      // Wait for sync
-      await Rx.firstValueFrom(
-        walletCtx.wallet.state().pipe(
-          Rx.throttleTime(3000),
-          Rx.filter((s: any) => s.isSynced),
-        ),
-      );
-
-      // 2. Set up providers
-      const providers = await createProviders(walletCtx);
+      // 1-2. Fetch persisted backend wallet connection
+      const walletCtx = BackendWalletManager.WalletCtx;
+      const providers = BackendWalletManager.Providers;
 
       // 3. Load contract module and build compiled contract
       const ContractModule = await loadContractModule();
@@ -77,9 +67,24 @@ export class VerificationProof {
       const witnesses = {
         getReserveWitness(context: any) {
           const privateState = context.privateState;
+          
+          let score = privateState.score;
+          if (typeof score !== 'bigint') {
+            score = BigInt(score);
+          }
+
+          let salt = privateState.salt;
+          if (!(salt instanceof Uint8Array)) {
+             if (salt.type === 'Buffer' && Array.isArray(salt.data)) {
+                 salt = new Uint8Array(salt.data);
+             } else {
+                 salt = new Uint8Array(Object.values(salt));
+             }
+          }
+
           return [
             privateState,
-            { score: privateState.score as bigint, salt: privateState.salt as Uint8Array },
+            { score, salt },
           ] as [any, { score: bigint; salt: Uint8Array }];
         },
       };
@@ -90,16 +95,18 @@ export class VerificationProof {
       );
 
       // 4. Generate request ID and salt
-      const requestId = crypto.randomBytes(32);
-      const salt = crypto.randomBytes(32);
+      const requestIdBytes = crypto.randomBytes(32);
+      const requestId = new Uint8Array(requestIdBytes);
+      const salt = new Uint8Array(crypto.randomBytes(32));
       const reserveScore = BigInt(Math.round(reserveRatio));
 
       // 5. Connect to the deployed contract
       console.log('📡 Connecting to deployed contract...');
+      const privateStateId = `epContractState_${requestIdBytes.toString('hex')}`;
       const deployedContract = await (findDeployedContract as any)(providers, {
         compiledContract,
         contractAddress,
-        privateStateId: 'epContractState',
+        privateStateId,
         initialPrivateState: {
           score: reserveScore,
           salt,
@@ -107,7 +114,7 @@ export class VerificationProof {
       });
 
       // 6. Call the proveReserveStatus circuit — this creates and submits a TX
-      console.log('🔐 Generating ZK proof and submitting transaction...');
+      console.log(`🔐 Generating ZK proof with thresholdBigInt: ${thresholdBigInt}, reserveScore: ${reserveScore}`);
       const result = await deployedContract.callTx.proveReserveStatus(
         thresholdBigInt,
         requestId,

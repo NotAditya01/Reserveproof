@@ -34,7 +34,7 @@ export class UserAccountManager {
     public static async cleanup(): Promise<void> {
         if (UserAccountManager.instance) {
             // Close all active wallets
-            for (const [sessionId, user] of UserAccountManager.instance.activeSessions) {
+            for (const [, user] of UserAccountManager.instance.activeSessions) {
                 if (user.wallet) {
                     await user.wallet.close();
                 }

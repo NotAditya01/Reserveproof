@@ -87,7 +87,6 @@ const _descriptor_10 = new __compactRuntime.CompactTypeUnsignedInteger(255n, 1);
 export class Contract {
   witnesses;
   constructor(...args_0) {
-    console.log('🔍 [DEBUG WASM/JS] Contract constructor args:', args_0);
     if (args_0.length !== 1) {
       throw new __compactRuntime.CompactError(`Contract constructor: expected 1 argument, received ${args_0.length}`);
     }
@@ -101,41 +100,33 @@ export class Contract {
     this.witnesses = witnesses_0;
     this.circuits = {
       proveReserveStatus: (...args_1) => {
-        console.log('🔍 [DEBUG WASM/JS] entering proveReserveStatus wrapping ...');
         if (args_1.length !== 3) {
           throw new __compactRuntime.CompactError(`proveReserveStatus: expected 3 arguments (as invoked from Typescript), received ${args_1.length}`);
         }
         const contextOrig_0 = args_1[0];
         const minTierThreshold_0 = args_1[1];
         const requestId_0 = args_1[2];
-        console.log('🔍 [DEBUG WASM/JS] checking argument 1');
         if (!(typeof(contextOrig_0) === 'object' && contextOrig_0.currentQueryContext != undefined)) {
-          console.error('🔍 [DEBUG WASM/JS] FAILED argument 1 (contextOrig_0)');
           __compactRuntime.typeError('proveReserveStatus',
                                      'argument 1 (as invoked from Typescript)',
                                      'ep-contract.compact line 34 char 1',
                                      'CircuitContext',
                                      contextOrig_0)
         }
-        console.log('🔍 [DEBUG WASM/JS] checking argument 2');
         if (!(typeof(minTierThreshold_0) === 'bigint' && minTierThreshold_0 >= 0n && minTierThreshold_0 <= 65535n)) {
-          console.error('🔍 [DEBUG WASM/JS] FAILED argument 2 (minTierThreshold) => ', minTierThreshold_0);
           __compactRuntime.typeError('proveReserveStatus',
                                      'argument 1 (argument 2 as invoked from Typescript)',
                                      'ep-contract.compact line 34 char 1',
                                      'Uint<0..65536>',
                                      minTierThreshold_0)
         }
-        console.log('🔍 [DEBUG WASM/JS] checking argument 3');
         if (!(requestId_0.buffer instanceof ArrayBuffer && requestId_0.BYTES_PER_ELEMENT === 1 && requestId_0.length === 32)) {
-          console.error('🔍 [DEBUG WASM/JS] FAILED argument 3 (requestId). buffer:', requestId_0.buffer instanceof ArrayBuffer, 'len:', requestId_0.length, 'bytesPerEl:', requestId_0.BYTES_PER_ELEMENT, 'constructor:', requestId_0.buffer?.constructor?.name);
           __compactRuntime.typeError('proveReserveStatus',
                                      'argument 2 (argument 3 as invoked from Typescript)',
                                      'ep-contract.compact line 34 char 1',
                                      'Bytes<32>',
                                      requestId_0)
         }
-        console.log('🔍 [DEBUG WASM/JS] all args OK, entering _proveReserveStatus_0');
         const context = { ...contextOrig_0, gasCost: __compactRuntime.emptyRunningCost() };
         const partialProofData = {
           input: {
@@ -146,7 +137,6 @@ export class Contract {
           publicTranscript: [],
           privateTranscriptOutputs: []
         };
-        console.log('🔍 [DEBUG WASM/JS] about to execute _proveReserveStatus_0');
         const result_0 = this._proveReserveStatus_0(context,
 
                                                     partialProofData,
@@ -254,40 +244,27 @@ export class Contract {
     return result_0;
   }
   _getReserveWitness_0(context, partialProofData) {
-    try {
-      console.log('🔍 [DEBUG WASM/JS] Inside _getReserveWitness_0');
-      console.log('Context details:', { hasPrivateState: !!context.currentPrivateState, hasQueryContext: !!context.currentQueryContext });
-      
-      let stateParam;
-      try { stateParam = context.currentQueryContext.state; } catch (e) { console.error('Failed to access state', e); }
-      
-      const witnessContext_0 = typeof __compactRuntime.createWitnessContext === 'function'
-        ? __compactRuntime.createWitnessContext(ledger(stateParam), context.currentPrivateState, context.currentQueryContext.address)
-        : {
-            ledger: ledger(stateParam),
-            privateState: context.currentPrivateState,
-            contractAddress: context.currentQueryContext.address
-          };
-      console.log('🔍 [DEBUG WASM/JS] Call to this.witnesses.getReserveWitness');
-      const [nextPrivateState_0, result_0] = this.witnesses.getReserveWitness(witnessContext_0);
-      console.log('🔍 [DEBUG WASM/JS] Received nextPrivateState and result_0 from getReserveWitness!', !!result_0);
-      context.currentPrivateState = nextPrivateState_0;
-      if (!(typeof(result_0) === 'object' && typeof(result_0.score) === 'bigint' && result_0.score >= 0n && result_0.score <= 65535n && result_0.salt.buffer instanceof ArrayBuffer && result_0.salt.BYTES_PER_ELEMENT === 1 && result_0.salt.length === 32)) {
-        __compactRuntime.typeError('getReserveWitness',
-                                   'return value',
-                                   'ep-contract.compact line 18 char 1',
-                                   'struct ReserveWitness<score: Uint<0..65536>, salt: Bytes<32>>',
-                                   result_0)
-      }
-      partialProofData.privateTranscriptOutputs.push({
-        value: _descriptor_5.toValue(result_0),
-        alignment: _descriptor_5.alignment()
-      });
-      return result_0;
-    } catch (criticalError) {
-      console.error('💣 [FATAL WASM/JS CRASH] Inside _getReserveWitness_0 !!! => ', criticalError);
-      throw criticalError;
+    const witnessContext_0 = typeof __compactRuntime.createWitnessContext === 'function'
+      ? __compactRuntime.createWitnessContext(ledger(context.currentQueryContext.state), context.currentPrivateState, context.currentQueryContext.address)
+      : {
+          ledger: ledger(context.currentQueryContext.state),
+          privateState: context.currentPrivateState,
+          contractAddress: context.currentQueryContext.address
+        };
+    const [nextPrivateState_0, result_0] = this.witnesses.getReserveWitness(witnessContext_0);
+    context.currentPrivateState = nextPrivateState_0;
+    if (!(typeof(result_0) === 'object' && typeof(result_0.score) === 'bigint' && result_0.score >= 0n && result_0.score <= 65535n && result_0.salt.buffer instanceof ArrayBuffer && result_0.salt.BYTES_PER_ELEMENT === 1 && result_0.salt.length === 32)) {
+      __compactRuntime.typeError('getReserveWitness',
+                                 'return value',
+                                 'ep-contract.compact line 18 char 1',
+                                 'struct ReserveWitness<score: Uint<0..65536>, salt: Bytes<32>>',
+                                 result_0)
     }
+    partialProofData.privateTranscriptOutputs.push({
+      value: _descriptor_5.toValue(result_0),
+      alignment: _descriptor_5.alignment()
+    });
+    return result_0;
   }
   _tierLabel_0(score_0) {
     if (score_0 >= 740n) {

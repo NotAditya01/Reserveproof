@@ -1,0 +1,8 @@
+{
+  "version": 3,
+  "file": "index.cjs",
+  "sourceRoot": "../../../src/",
+  "sources": ["ep-contract.compact", "compiler/standard-library.compact"],
+  "names": [],
+  "mappings": ";;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;EAAA;;;;;;;;;;MAiCA,AAAA,kBAoBC;;;;cApBiC,kBAA0B;cAAE,WAAoB;;;;;;;;;;;;;;;;;;;;;;yCAAhD,kBAA0B,+BAAE,WAAoB;;;;;;;;;qDAAhD,kBAA0B;qDAAE,WAAoB;;;OAoBjF;MAGD,AAAA,iBAEC;;;;cAFgC,WAAoB;;;;;;;;;;;;;;;;yCAApB,WAAoB;;;;;;;;;oDAApB,WAAoB;;;OAEpD;;;;;;GACA;EA3DD;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;IAoBA;;;;;;;;;;uDAAiE;;;;;;;GAuChE;EChBD,AAAA,8CAAiC;oEAAA;;;ED1BjC,AAAA,qBAA4C;;0DAA5C,iBAA4C;;;;;;;;;;;;;GAAA;EAK5C,AAAA,aAQC,4BARiB,OAAe;QAC3B,OAAK;;;UAGL,OAAK;;;;;;GAIV;EAGD,AAAA,sBAoBC;;yBApBiC,kBAA0B;yBAAE,WAAoB;;UAChF,SAAoC;4BAE7B,SAAO;4BACP,SAAO;2CAEZ,kBAAgB;;2CAAW,kBAAgB;;2CAAW,kBAAgB;;4BAGjE,SAAO,UAAU,kBAAgB;;UAExC,YAA2D;;iDAAT,SAAO;UAEzD,QAIE,sBAHiB,YAAU;;;;4CACX,SAAO;;IAIzB;;;;;;;;;;yGAA8B,WAAS;;;yGAAY,QAAM;;;sDAA5C;;GACd;EAGD,AAAA,qBAEC,4BAFgC,WAAoB;mCAC5C;;;;;;;;;;;;;;4GAA8B,WAAS;;;sFAA1B;GACrB;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;IAtCD;;;;uCAAA;;;;;;;;;;;;;;;;0FAAiE;;;;;uCAAjE;;;;;;;;;;;;0FAAiE;;;;;;;;;;;;uCAAjE;;;;;;;;;;;;;;;0FAAiE;;;;;;;;;;;;uCAAjE;;;;;;;;;;;;;;;;;0FAAiE;;;;;;;;KAAA;;;;;;;;;;;;;;;;"
+}

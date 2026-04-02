@@ -169,21 +169,12 @@ code,
   }
 }
 
-.animate-feed {
-  animation: feedScroll var(--feed-scroll-duration, 26s) linear infinite;
-  will-change: transform;
-}
-
 .hero-word-enter {
   animation: heroWordEnter 300ms ease-out;
 }
 
 .hero-word-exit {
   animation: heroWordExit 300ms ease-in;
-}
-
-.hero-cursor {
-  animation: blink 1s step-end infinite;
 }
 
 .hero-proof-card {
@@ -222,10 +213,6 @@ code,
   animation-name: confettiFall;
   animation-timing-function: linear;
   animation-fill-mode: forwards;
-}
-
-.feed-hover-pause:hover .animate-feed {
-  animation-play-state: paused;
 }
 
 .route-fade {

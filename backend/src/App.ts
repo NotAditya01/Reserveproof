@@ -7,6 +7,7 @@ import { authRouter } from './routes/authRoutes.js';
 import { reserveRouter } from './routes/reserveRoutes.js';
 import { DatabaseService } from './db/DatabaseService.js';
 import { UserAccountManager } from './services/UserAccountManager.js';
+import { BackendWalletManager } from './services/BackendWalletManager.js';
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -49,7 +50,15 @@ async function startServer() {
     app.use('/api/auth', authRouter);
     app.use('/api/reserve', reserveRouter);
 
-    // Server Start (Only runs if DB connection succeeded)
+    // Initialize Persistent Backend Wallet (Waits for full sync)
+    const backendSeed = process.env.BACKEND_WALLET_SEED;
+    if (!backendSeed) {
+      console.error('❌ FATAL ERROR: BACKEND_WALLET_SEED is missing from environment.');
+      process.exit(1);
+    }
+    await BackendWalletManager.initialize(backendSeed);
+
+    // Server Start (Only runs if DB & Wallet connection succeeded)
     const server = app.listen(PORT, () => {
       console.log(`⚡️ Server is running at http://localhost:${PORT}`);
     });
@@ -57,6 +66,7 @@ async function startServer() {
     process.on('SIGTERM', async () => {
       console.log('SIGTERM received, closing server gracefully...');
       server.close(async () => {
+        await BackendWalletManager.shutdown();
         await UserAccountManager.cleanup();
         process.exit(0);
       });
@@ -65,6 +75,7 @@ async function startServer() {
     process.on('SIGINT', async () => {
       console.log('\nSIGINT received, closing server gracefully...');
       server.close(async () => {
+        await BackendWalletManager.shutdown();
         await UserAccountManager.cleanup();
         process.exit(0);
       });

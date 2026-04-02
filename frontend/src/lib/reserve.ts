@@ -1,16 +1,5 @@
 export type SolvencyStatus = 'SOLVENT' | 'WARNING' | 'INSOLVENT';
 
-export function computeReserveRatio(totalReserves: number, totalLiabilities: number): number {
-  if (totalLiabilities <= 0) return 0;
-  return Number(((totalReserves / totalLiabilities) * 100).toFixed(2));
-}
-
-export function solvencyStatusFromRatio(reserveRatio: number): SolvencyStatus {
-  if (reserveRatio >= 120) return 'SOLVENT';
-  if (reserveRatio >= 100) return 'WARNING';
-  return 'INSOLVENT';
-}
-
 export function ratioBandFromStatus(status: SolvencyStatus): string {
   if (status === 'SOLVENT') return 'Above 120%';
   if (status === 'WARNING') return '100–120%';

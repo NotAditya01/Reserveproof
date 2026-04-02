@@ -58,7 +58,6 @@ async function main() {
   const {
     createMidnightWallet,
     createProviders,
-    generateSeedHex,
     loadContractModule,
     zkConfigPath,
   } = await import('./services/midnight-utils.js');
@@ -76,17 +75,14 @@ async function main() {
   }
   console.log('✅ Compiled contract found\n');
 
-  // 2. Backend wallet seed
-  let seed = process.env.BACKEND_WALLET_SEED ?? '';
-  if (!seed || seed.length < 32) {
-    console.log('─── Generating Backend Wallet Seed ────────────────────────────\n');
-    seed = generateSeedHex();
-    setEnvValue('BACKEND_WALLET_SEED', seed);
-    console.log(`  ✅ BACKEND_WALLET_SEED saved to .env\n`);
-    console.log(`  ⚠️  SAVE THIS SEED: ${seed}\n`);
-  } else {
-    console.log(`  Using existing BACKEND_WALLET_SEED from .env\n`);
+  // 2. Backend wallet seed (24-word mnemonic)
+  const seed = (process.env.BACKEND_WALLET_SEED ?? '').trim();
+  if (!seed) {
+    throw new Error(
+      'BACKEND_WALLET_SEED is required and must be a 24-word mnemonic phrase from Lace',
+    );
   }
+  console.log(`  Using existing BACKEND_WALLET_SEED from .env\n`);
 
   // 3. Create wallet
   console.log('─── Creating Wallet ────────────────────────────────────────────\n');
@@ -135,7 +131,7 @@ async function main() {
   const dustState = await Rx.firstValueFrom(
     walletCtx.wallet.state().pipe(
       Rx.throttleTime(3000),
-      Rx.filter((s: any) => s.unshielded?.progress?.isStrictlyComplete?.() === true),
+      Rx.filter((s: any) => s.isSynced === true),
     ),
   );
 
@@ -157,13 +153,25 @@ async function main() {
     }
 
     console.log('  Waiting for DUST tokens...');
-    await Rx.firstValueFrom(
+    const timeoutMs = Number(process.env.DUST_WAIT_TIMEOUT_MS ?? '120000');
+    const waitForDust = Rx.firstValueFrom(
       walletCtx.wallet.state().pipe(
         Rx.throttleTime(5000),
         Rx.filter((s: any) => s.unshielded?.progress?.isStrictlyComplete?.() === true),
         Rx.filter((s: any) => (s.dust?.walletBalance?.(new Date()) ?? 0n) > 0n),
       ),
     );
+    const timeout = new Promise<never>((_, reject) => {
+      setTimeout(() => {
+        reject(
+          new Error(
+            `Timed out waiting for DUST after ${timeoutMs}ms. ` +
+              'Generate spendable DUST in Lace and retry.',
+          ),
+        );
+      }, timeoutMs);
+    });
+    await Promise.race([waitForDust, timeout]);
   }
   console.log('  ✅ DUST tokens ready!\n');
 
@@ -184,7 +192,7 @@ async function main() {
 
   const compiledContract = CompiledContract.make('ep-contract', ContractModule.Contract).pipe(
     (CompiledContract.withWitnesses as any)(deployWitnesses),
-    CompiledContract.withCompiledFileAssets(zkConfigPath),
+    (CompiledContract.withCompiledFileAssets as any)(zkConfigPath),
   );
 
   console.log('  Deploying contract (this may take 30-60 seconds)...\n');

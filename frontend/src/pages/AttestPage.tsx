@@ -9,6 +9,7 @@ import {
   evaluateAttributeState,
   type CategoryType,
 } from '../lib/proofTemplates';
+import { CheckCircle } from 'lucide-react';
 
 const STEP_LABELS = [
   'Financial data committed locally',
@@ -19,6 +20,29 @@ const STEP_LABELS = [
 
 function sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function spawnConfetti() {
+  const colors = ['#7C6FCD', '#16A34A', '#FFD700', '#60A5FA', '#F472B6'];
+  const particles: HTMLDivElement[] = [];
+  for (let i = 0; i < 35; i += 1) {
+    const node = document.createElement('div');
+    const size = 5 + Math.random() * 3;
+    node.className = 'confetti-particle';
+    node.style.width = `${size}px`;
+    node.style.height = `${size}px`;
+    node.style.borderRadius = Math.random() > 0.5 ? '50%' : '1px';
+    node.style.left = `${Math.random() * 100}vw`;
+    node.style.top = '-10px';
+    node.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)];
+    node.style.setProperty('--drift', `${-50 + Math.random() * 100}px`);
+    node.style.setProperty('--rot', `${Math.random() * 360}deg`);
+    node.style.animationDuration = `${1800 + Math.random() * 1000}ms`;
+    node.style.animationDelay = `${Math.random() * 600}ms`;
+    document.body.appendChild(node);
+    particles.push(node);
+  }
+  window.setTimeout(() => particles.forEach((node) => node.remove()), 3500);
 }
 
 function toNumber(value: string): number {
@@ -158,10 +182,9 @@ export default function AttestPage() {
         }),
       });
 
-      for (let i = 1; i < STEP_LABELS.length; i += 1) {
-        await sleep(760);
-        setActiveStep(i);
-      }
+      const timer1 = setTimeout(() => setActiveStep(1), 2000);
+      const timer2 = setTimeout(() => setActiveStep(2), 25000);
+      const timer3 = setTimeout(() => setActiveStep(3), 50000);
 
       const response = await request;
       if (!response.ok) {
@@ -170,8 +193,15 @@ export default function AttestPage() {
       }
 
       const payload = await response.json();
+      
+      clearTimeout(timer1);
+      clearTimeout(timer2);
+      clearTimeout(timer3);
+      setActiveStep(4);
+      spawnConfetti();
+      await sleep(1500);
+      
       setProofHash(payload.proofHash);
-      await sleep(360);
       navigate(`/attest/${encodeURIComponent(payload.proofHash)}`);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to attest reserves');
@@ -270,7 +300,7 @@ export default function AttestPage() {
                                   value={state.inputs[input.key] ?? ''}
                                   onChange={(e) => updateInput(attribute.type, input.key, e.target.value)}
                                   placeholder={input.placeholder}
-                                  type={input.type === 'text' ? 'text' : 'text'}
+                                  type="text"
                                   className="h-10 w-full rounded-lg border border-[var(--border)] bg-[var(--surface-2)] px-3 text-[13px] text-[var(--text-primary)] outline-none focus:border-[var(--accent)]"
                                 />
                               </label>
@@ -342,27 +372,50 @@ export default function AttestPage() {
       </div>
 
       {loading && (
-        <div className="fixed inset-0 z-50 grid place-items-center bg-black/70 px-4">
-          <div className="surface-card w-full max-w-md p-5">
+        <div className="fixed inset-0 z-50 grid place-items-center bg-black/70 px-4 transition-all">
+          <div className="surface-card w-full max-w-md animate-pulse p-6 relative overflow-hidden">
             <h2 className="text-base font-semibold text-[var(--text-primary)]">Generating Reserve Attestation</h2>
-            <div className="mt-4 space-y-3">
-              {STEP_LABELS.map((label, idx) => (
-                <div key={label} className="flex items-center gap-3">
-                  <span
-                    className={`inline-flex h-5 w-5 items-center justify-center rounded-full text-[11px] ${
-                      idx <= activeStep
-                        ? 'bg-[var(--accent)] text-white'
-                        : 'bg-[var(--surface-2)] text-[var(--text-muted)]'
-                    }`}
-                  >
-                    {idx + 1}
-                  </span>
-                  <span className={idx <= activeStep ? 'text-sm text-[var(--text-primary)]' : 'text-sm text-[var(--text-muted)]'}>
-                    {label}
-                  </span>
-                </div>
-              ))}
+            <div className="mt-6 flex flex-col gap-4 relative z-10">
+              {STEP_LABELS.map((label, idx) => {
+                const isComplete = activeStep > idx;
+                const isActive = activeStep === idx;
+                return (
+                  <div key={label} className="flex flex-col">
+                    <div className="flex items-center gap-3">
+                      <span
+                        className={`inline-flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full text-[11px] transition-colors duration-300 ${
+                          isComplete
+                            ? 'bg-[var(--solvent)] text-white'
+                            : isActive
+                              ? 'bg-[var(--accent)] text-white'
+                              : 'bg-[var(--surface-2)] text-[var(--text-muted)]'
+                        }`}
+                      >
+                        {isComplete ? <CheckCircle size={12} strokeWidth={3} /> : idx + 1}
+                      </span>
+                      <span className={isComplete || isActive ? 'text-sm font-medium text-[var(--text-primary)]' : 'text-sm text-[var(--text-muted)]'}>
+                        {label}
+                      </span>
+                    </div>
+                    {/* Progress Bar for Steps 2 and 3 */}
+                    {(idx === 1 || idx === 2) && (
+                      <div className="ml-8 mt-2 h-1 w-full max-w-[280px] overflow-hidden rounded bg-[var(--surface-2)]">
+                        <div 
+                          className={`h-full bg-[var(--accent)] transition-all ease-linear ${
+                            isComplete ? 'w-full !duration-300' : isActive ? 'w-[98%]' : 'w-0 !duration-0'
+                          } ${isActive && idx === 1 ? '!duration-[23000ms]' : ''} ${isActive && idx === 2 ? '!duration-[25000ms]' : ''}`}
+                        />
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
             </div>
+            
+            <p className="mt-6 text-center text-[12px] text-[var(--text-muted)] relative z-10">
+              ZK proofs are computed and verified on-chain. <br/>
+              This typically takes 45-60 seconds.
+            </p>
           </div>
         </div>
       )}

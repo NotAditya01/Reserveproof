@@ -1,83 +1,53 @@
-## ReserveProof Database Setup Guide (PostgreSQL)
+# ReserveProof Database Setup (PostgreSQL)
 
-This guide covers installing PostgreSQL, setting up the database and user, and creating the `.env` file for this project.
+This document covers the minimum database setup required to run the backend.
 
-### 1. Install PostgreSQL
+## 1. Create Database and Role
 
-First, install PostgreSQL on your computer. The process varies by operating system:
-- **macOS**: Use Homebrew
-- **Windows**: Use the official installer
-- **Linux**: Use apt or your package manager
-
-Download from: https://www.postgresql.org/download/
-
-### 2. Set Up the Database and User
-Open your terminal and log into psql as the default superuser, postgres.
-
-```bash
-sudo -u postgres psql
-```
-
-You should see the `postgres=#` prompt.
-
-#### Create the Database
+Open `psql` as a superuser and run:
 
 ```sql
 CREATE DATABASE reserveproof_db;
+CREATE ROLE reserveproof_user WITH LOGIN PASSWORD 'replace_with_strong_password';
+GRANT ALL PRIVILEGES ON DATABASE reserveproof_db TO reserveproof_user;
 ```
 
-#### Set the User Password
+## 2. Configure Backend Environment
+
+Set the following values in the project root `/.env`:
+
+```env
+DB_NAME=reserveproof_db
+DB_USER=reserveproof_user
+DB_PASSWORD=replace_with_strong_password
+DB_HOST=localhost
+```
+
+## 3. Table Initialization
+
+No manual migration step is required for local development.  
+On backend startup, `DatabaseService.initDb()` creates/updates required tables:
+
+- `UserAccount`
+- `reserve_attestations`
+
+It also applies additive columns used by attestation verification:
+
+- `category_type`
+- `attributes_selected`
+- `attributes_results`
+- `overall_verified`
+- `tx_hash`
+- `on_chain`
+
+## 4. Optional Manual Verification
+
+To confirm setup:
 
 ```sql
-ALTER USER your_username WITH PASSWORD 'yourpassword';
+\c reserveproof_db
+\dt
+SELECT COUNT(*) FROM reserve_attestations;
 ```
 
-#### Grant Privileges
-
-```sql
-GRANT ALL PRIVILEGES ON DATABASE reserveproof_db TO your_username;
-```
-
-#### Exit psql
-
-```bash
-\q
-```
-
-### 3. Create the `.env` File
-
-In your project's root folder, create a `.env` file with your database values:
-
-```bash
-DB_NAME = reserveproof_db
-DB_USER = your_db_username
-DB_PASSWORD = your_db_password
-DB_HOST = localhost
-```
-
-#### Add `.env` to `.gitignore`
-
-Always prevent committing secrets to version control:
-
-```bash
-node_modules/
-.env
-```
-
-## Required Table for ReserveProof
-
-```sql
-CREATE TABLE IF NOT EXISTS reserve_attestations (
-    id SERIAL PRIMARY KEY,
-    wallet_address VARCHAR(255) NOT NULL,
-    protocol_name VARCHAR(255) NOT NULL,
-    total_reserves NUMERIC NOT NULL,
-    total_liabilities NUMERIC NOT NULL,
-    reserve_ratio NUMERIC NOT NULL,
-    solvency_status VARCHAR(16) NOT NULL,
-    proof_hash VARCHAR(255),
-    verified BOOLEAN NOT NULL DEFAULT false,
-    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    expires_at TIMESTAMPTZ NOT NULL DEFAULT (NOW() + INTERVAL '90 days')
-);
-```
+If these commands succeed, database connectivity and schema initialization are working.

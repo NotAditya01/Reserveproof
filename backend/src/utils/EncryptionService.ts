@@ -79,7 +79,7 @@ export class EncryptionService {
             let decrypted = decipher.update(payload.ciphertext, 'hex', 'utf8');
             decrypted += decipher.final('utf8');
             return decrypted;
-        } catch (err) {
+        } catch {
             // Authentication failed
             throw new Error('Decryption failed. Wrong password or corrupted data.');
         }

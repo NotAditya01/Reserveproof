@@ -203,11 +203,10 @@ export default function AttestProofPage() {
             {categoryLabel} • Midnight Network
           </p>
           <span
-            className={`rounded-[4px] border px-2.5 py-0.5 text-[11px] font-bold uppercase tracking-[0.05em] ${
-              overallVerified
+            className={`rounded-[4px] border px-2.5 py-0.5 text-[11px] font-bold uppercase tracking-[0.05em] ${overallVerified
                 ? 'border-[var(--solvent-border)] bg-[var(--solvent-bg)] text-[var(--solvent)]'
                 : 'border-[rgba(220,38,38,0.3)] bg-[var(--insolvent-bg)] text-[var(--insolvent)]'
-            }`}
+              }`}
           >
             {overallVerified ? 'Verified' : 'Unverified'}
           </span>
@@ -220,19 +219,17 @@ export default function AttestProofPage() {
           {attributeRows.map((attribute, index) => (
             <div
               key={`${attribute.label ?? 'attribute'}-${index}`}
-              className={`flex items-center justify-between py-2.5 ${
-                index < attributeRows.length - 1 ? 'border-b border-[var(--border)]' : ''
-              }`}
+              className={`flex items-center justify-between py-2.5 ${index < attributeRows.length - 1 ? 'border-b border-[var(--border)]' : ''
+                }`}
             >
               <div className="inline-flex items-center gap-2">
                 <span
-                  className={`h-[7px] w-[7px] rounded-full ${
-                    attribute.enabled
+                  className={`h-[7px] w-[7px] rounded-full ${attribute.enabled
                       ? attribute.pass
                         ? 'bg-[var(--solvent)]'
                         : 'bg-[var(--insolvent)]'
                       : 'bg-[var(--text-muted)] opacity-30'
-                  }`}
+                    }`}
                 />
                 <span className={`text-[13px] ${attribute.enabled ? 'text-[var(--text-primary)]' : 'text-[var(--text-muted)]'}`}>
                   {attribute.label ?? 'Attribute'}
@@ -257,7 +254,7 @@ export default function AttestProofPage() {
           </p>
           {data.txHash && (
             <a
-              href={`https://explorer.midnight.network/tx/${data.txHash}`}
+              href={`https://preprod.midnightexplorer.com/tx/${data.txHash}`}
               target="_blank"
               rel="noopener noreferrer"
               className="inline-flex items-center gap-1.5 font-mono text-[11px] text-[var(--accent)] hover:underline"
@@ -277,11 +274,10 @@ export default function AttestProofPage() {
           <p className="flex-1 overflow-hidden text-ellipsis whitespace-nowrap font-mono text-xs text-[var(--text-secondary)]">{verifyLink}</p>
           <button
             onClick={copyVerifyLink}
-            className={`inline-flex items-center gap-1 rounded-md border px-3 py-1 text-xs ${
-              copiedLink
+            className={`inline-flex items-center gap-1 rounded-md border px-3 py-1 text-xs ${copiedLink
                 ? 'border-[var(--solvent-border)] text-[var(--solvent)]'
                 : 'border-[var(--border)] text-[var(--text-secondary)]'
-            }`}
+              }`}
           >
             {copiedLink ? <Check size={12} /> : <Copy size={12} />}
             {copiedLink ? 'Copied!' : 'Copy'}
@@ -316,11 +312,10 @@ export default function AttestProofPage() {
           <p className="flex-1 break-all font-mono text-[11px] text-[var(--text-muted)]">{proofHash}</p>
           <button
             onClick={copyProofHash}
-            className={`inline-flex items-center gap-1 rounded-md border px-3 py-1 text-xs ${
-              copiedHash
+            className={`inline-flex items-center gap-1 rounded-md border px-3 py-1 text-xs ${copiedHash
                 ? 'border-[var(--solvent-border)] text-[var(--solvent)]'
                 : 'border-[var(--border)] text-[var(--text-secondary)]'
-            }`}
+              }`}
           >
             {copiedHash ? <Check size={12} /> : <Copy size={12} />}
             {copiedHash ? 'Copied!' : 'Copy'}

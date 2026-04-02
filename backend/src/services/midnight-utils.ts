@@ -24,6 +24,8 @@ import {
   UnshieldedWallet,
 } from '@midnight-ntwrk/wallet-sdk-unshielded-wallet';
 import { toHex } from '@midnight-ntwrk/midnight-js-utils';
+import { mnemonicToSeedSync, validateMnemonic } from '@scure/bip39';
+import { wordlist } from '@scure/bip39/wordlists/english';
 
 // Enable WebSocket for GraphQL subscriptions
 // @ts-expect-error Required for wallet sync in Node.js
@@ -47,8 +49,8 @@ export const CONFIG = {
   proofServer: requireEnv('PROVE_SERVER_URL'),
 };
 
-const privateStatePassword = process.env.PRIVATE_STATE_PASSWORD;
-if (!privateStatePassword || privateStatePassword.length < 16) {
+const privateStatePassword = requireEnv('PRIVATE_STATE_PASSWORD');
+if (privateStatePassword.length < 16) {
   throw new Error('Missing required environment variable: PRIVATE_STATE_PASSWORD');
 }
 
@@ -92,14 +94,22 @@ export const zkConfigPath = path.resolve(__dirname, '..', '..', '..', 'contracts
 // ─── Contract Loading 
 
 export async function loadContractModule() {
-  const contractPath = path.join(zkConfigPath, 'contract', 'index.js');
+  const contractPath = path.resolve(__dirname, '..', '..', 'src', 'managed', 'ep-contract', 'contract', 'index.js');
   return await import(pathToFileURL(contractPath).href);
 }
 
 // ─── Wallet Functions 
 
 export function deriveKeys(seed: string) {
-  const hdWallet = HDWallet.fromSeed(Buffer.from(seed, 'hex'));
+  const normalized = seed.trim().toLowerCase().replace(/\s+/g, ' ');
+  const words = normalized.split(' ');
+  if (words.length !== 24) {
+    throw new Error('BACKEND_WALLET_SEED must be a 24-word mnemonic phrase');
+  }
+  if (!validateMnemonic(normalized, wordlist)) {
+    throw new Error('BACKEND_WALLET_SEED is not a valid BIP39 English mnemonic');
+  }
+  const hdWallet = HDWallet.fromSeed(mnemonicToSeedSync(normalized));
   if (hdWallet.type !== 'seedOk') throw new Error('Invalid seed');
 
   const result = hdWallet.hdWallet
@@ -162,7 +172,7 @@ export function signTransactionIntents(
     if (cloned.fallibleUnshieldedOffer) {
       const sigs = cloned.fallibleUnshieldedOffer.inputs.map(
         (_: any, i: number) =>
-          cloned.fallibleUnshieldedOffer!.signatures.at(i) ?? signature,
+          cloned.fallibleUnshieldedOffer!.signatures[i] ?? signature,
       );
       cloned.fallibleUnshieldedOffer =
         cloned.fallibleUnshieldedOffer.addSignatures(sigs);
@@ -171,7 +181,7 @@ export function signTransactionIntents(
     if (cloned.guaranteedUnshieldedOffer) {
       const sigs = cloned.guaranteedUnshieldedOffer.inputs.map(
         (_: any, i: number) =>
-          cloned.guaranteedUnshieldedOffer!.signatures.at(i) ?? signature,
+          cloned.guaranteedUnshieldedOffer!.signatures[i] ?? signature,
       );
       cloned.guaranteedUnshieldedOffer =
         cloned.guaranteedUnshieldedOffer.addSignatures(sigs);
@@ -228,7 +238,6 @@ export async function createProviders(
       privateStateStoreName: 'ep-contract-state',
       privateStoragePasswordProvider: () => privateStatePassword,
       accountId: String(walletCtx.unshieldedKeystore.getBech32Address()),
-      walletProvider,
     }),
     publicDataProvider: indexerPublicDataProvider(CONFIG.indexer, CONFIG.indexerWS),
     zkConfigProvider,

@@ -2,13 +2,17 @@ pragma language_version 0.22;
 
 import CompactStandardLibrary;
 
-// Private reserve ratio data supplied off-chain via witness.
+/*
+  Stores proof-backed reserve status by request id.
+  The proof enforces score bounds and minimum threshold compliance.
+  Exact score and salt remain private witness data.
+  Only commitment, tier, and verification flag are persisted on-chain.
+*/
 struct ReserveWitness {
   score: Uint<16>;
   salt: Bytes<32>;
 }
 
-// What gets anchored on-chain: commitment + solvency status + validity only.
 struct ReserveStatusResult {
   scoreCommitment: Bytes<32>;
   tier: Bytes<9>;
@@ -17,9 +21,9 @@ struct ReserveStatusResult {
 
 witness getReserveWitness(): ReserveWitness;
 
-// Map<ProofId, ReserveStatusResult>
 export ledger verifications: Map<Bytes<32>, ReserveStatusResult>;
 
+// Converts a private score into a public solvency tier label.
 circuit tierLabel(score: Uint<16>): Bytes<9> {
   if (score >= 740) {
     return pad(9, "SOLVENT");
@@ -30,7 +34,7 @@ circuit tierLabel(score: Uint<16>): Bytes<9> {
   return pad(9, "INSOLVENT");
 }
 
-// Generate circuit: prove only that reserve ratio status satisfies threshold band.
+// Proves score meets requested tier threshold without revealing the score.
 export circuit proveReserveStatus(minTierThreshold: Uint<16>, requestId: Bytes<32>): [] {
   const reserve = getReserveWitness();
 
@@ -53,7 +57,7 @@ export circuit proveReserveStatus(minTierThreshold: Uint<16>, requestId: Bytes<3
   verifications.insert(disclose(requestId), disclose(result));
 }
 
-// Public verification circuit
+// Returns the stored public verification result for a request id.
 export circuit getVerifiedResult(requestId: Bytes<32>): ReserveStatusResult {
   return verifications.lookup(disclose(requestId));
 }

@@ -79,7 +79,7 @@ export class DatabaseService {
             if ((error as any).code === '23505') { // Error code 23505 is for unique object exists in db
                 throw new Error("Email already exists");
             } else {
-                console.log("Error inserting user into db" + error);
+                console.error("Error inserting user into db", error);
                 throw error;
             }
         }
