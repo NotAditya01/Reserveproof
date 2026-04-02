@@ -7,13 +7,19 @@ export class DatabaseService {
     private pool: Pool;
 
     constructor() {
-        this.pool = new Pool({
-            user: process.env.DB_USER,
-            host: process.env.DB_HOST,
-            password: process.env.DB_PASSWORD,
-            database: process.env.DB_NAME,
-            port: 5432 // This is the default port for PostgreSQL
-        });
+        if (process.env.DATABASE_URL) {
+            this.pool = new Pool({
+                connectionString: process.env.DATABASE_URL,
+            });
+        } else {
+            this.pool = new Pool({
+                user: process.env.DB_USER,
+                host: process.env.DB_HOST,
+                password: process.env.DB_PASSWORD,
+                database: process.env.DB_NAME,
+                port: process.env.DB_PORT ? parseInt(process.env.DB_PORT) : 5432
+            });
+        }
     }
 
     async initDb() {
