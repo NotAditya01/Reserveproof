@@ -4,7 +4,6 @@
   "type": "module",
   "main": "dist/App.js",
   "scripts": {
-    "postinstall": "bash scripts/patch-node20.sh",
     "build": "tsc",
     "start": "node -r dotenv/config dist/App.js dotenv_config_path=../.env",
     "dev": "tsc --pretty false && node -r dotenv/config dist/App.js dotenv_config_path=../.env",
