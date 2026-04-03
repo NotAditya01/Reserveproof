@@ -101,6 +101,9 @@ export class VerificationProof {
       const reserveScore = BigInt(Math.round(reserveRatio));
 
       // 5. Connect to the deployed contract
+      console.log('📡 Synchronizing Midnight network nonces...');
+      await walletCtx.wallet.waitForSyncedState();
+
       console.log('📡 Connecting to deployed contract...');
       const privateStateId = `epContractState_${requestIdBytes.toString('hex')}`;
       const deployedContract = await (findDeployedContract as any)(providers, {
@@ -127,8 +130,6 @@ export class VerificationProof {
         ?? Buffer.from(requestId).toString('hex').slice(0, 64);
 
       console.log(`✅ Proof submitted on-chain! TX: ${txHash}`);
-
-      await walletCtx.wallet.stop();
 
       return {
         success: true,
