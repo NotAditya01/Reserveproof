@@ -89,7 +89,7 @@ const buildDustConfig = (cfg: typeof CONFIG) => ({
 
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-export const zkConfigPath = path.resolve(process.cwd(), '../contracts/managed/ep-contract');
+export const zkConfigPath = path.resolve(__dirname, '../managed/ep-contract');
 
 // ─── Contract Loading 
 
