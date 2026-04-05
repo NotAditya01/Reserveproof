@@ -87,6 +87,9 @@ export default function AttestProofPage() {
   const [error, setError] = useState<string | null>(null);
   const [copiedLink, setCopiedLink] = useState(false);
   const [copiedHash, setCopiedHash] = useState(false);
+  const [copiedPublicLink, setCopiedPublicLink] = useState(false);
+  const [copiedAuditorLink, setCopiedAuditorLink] = useState(false);
+  const [copiedRegulatorLink, setCopiedRegulatorLink] = useState(false);
 
   useEffect(() => {
     let mounted = true;
@@ -139,6 +142,27 @@ export default function AttestProofPage() {
     await navigator.clipboard.writeText(proofHash);
     setCopiedHash(true);
     window.setTimeout(() => setCopiedHash(false), 2000);
+  }
+
+  const auditorLink = verifyUrl(window.location.origin, proofHash) + '?view=auditor';
+  const regulatorLink = verifyUrl(window.location.origin, proofHash) + '?view=regulator';
+
+  async function copyPublicLink() {
+    await navigator.clipboard.writeText(verifyLink);
+    setCopiedPublicLink(true);
+    window.setTimeout(() => setCopiedPublicLink(false), 2000);
+  }
+
+  async function copyAuditorLink() {
+    await navigator.clipboard.writeText(auditorLink);
+    setCopiedAuditorLink(true);
+    window.setTimeout(() => setCopiedAuditorLink(false), 2000);
+  }
+
+  async function copyRegulatorLink() {
+    await navigator.clipboard.writeText(regulatorLink);
+    setCopiedRegulatorLink(true);
+    window.setTimeout(() => setCopiedRegulatorLink(false), 2000);
   }
 
   function shareX() {
@@ -269,19 +293,64 @@ export default function AttestProofPage() {
       <section className="w-full rounded-[14px] border border-[var(--border)] bg-[var(--surface)] p-6">
         <p className="mb-4 text-[11px] uppercase tracking-[0.1em] text-[var(--text-muted)]">Share Your Proof</p>
 
-        <p className="mb-1.5 text-[11px] uppercase tracking-[0.06em] text-[var(--text-muted)]">Verification Link</p>
-        <div className="flex items-center gap-3 rounded-lg border border-[var(--border)] bg-[var(--surface-2)] px-3 py-2.5">
-          <p className="flex-1 overflow-hidden text-ellipsis whitespace-nowrap font-mono text-xs text-[var(--text-secondary)]">{verifyLink}</p>
-          <button
-            onClick={copyVerifyLink}
-            className={`inline-flex items-center gap-1 rounded-md border px-3 py-1 text-xs ${copiedLink
-                ? 'border-[var(--solvent-border)] text-[var(--solvent)]'
-                : 'border-[var(--border)] text-[var(--text-secondary)]'
+        <p className="mb-3 text-[11px] uppercase tracking-[0.1em] text-[var(--text-muted)]">Share with Specific Audience</p>
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+          {/* Public */}
+          <div className="flex flex-col gap-3 rounded-[10px] border border-[var(--border)] bg-[var(--surface-2,var(--surface))] p-4">
+            <div>
+              <p className="text-[13px] font-semibold text-[var(--text-primary)]">👤 Public</p>
+              <p className="mt-1 text-[11px] leading-[1.5] text-[var(--text-muted)]">Shows overall verified status only</p>
+            </div>
+            <button
+              onClick={copyPublicLink}
+              className={`inline-flex items-center justify-center gap-1.5 rounded-md border px-3 py-1.5 text-xs transition-colors ${
+                copiedPublicLink
+                  ? 'border-[var(--solvent-border)] text-[var(--solvent)]'
+                  : 'border-[var(--border)] text-[var(--text-secondary)] hover:border-[var(--accent)] hover:text-[var(--text-primary)]'
               }`}
-          >
-            {copiedLink ? <Check size={12} /> : <Copy size={12} />}
-            {copiedLink ? 'Copied!' : 'Copy'}
-          </button>
+            >
+              {copiedPublicLink ? <Check size={12} /> : <Copy size={12} />}
+              {copiedPublicLink ? 'Copied!' : 'Copy Link'}
+            </button>
+          </div>
+
+          {/* Auditor */}
+          <div className="flex flex-col gap-3 rounded-[10px] border border-[rgba(108,99,255,0.4)] bg-[var(--accent-dim)] p-4">
+            <div>
+              <p className="text-[13px] font-semibold text-[var(--text-primary)]">🔍 Auditor</p>
+              <p className="mt-1 text-[11px] leading-[1.5] text-[var(--text-muted)]">Shows attribute pass/fail breakdown</p>
+            </div>
+            <button
+              onClick={copyAuditorLink}
+              className={`inline-flex items-center justify-center gap-1.5 rounded-md border px-3 py-1.5 text-xs transition-colors ${
+                copiedAuditorLink
+                  ? 'border-[var(--solvent-border)] text-[var(--solvent)]'
+                  : 'border-[var(--accent)] text-[var(--accent)] hover:bg-[rgba(108,99,255,0.1)]'
+              }`}
+            >
+              {copiedAuditorLink ? <Check size={12} /> : <Copy size={12} />}
+              {copiedAuditorLink ? 'Copied!' : 'Copy Link'}
+            </button>
+          </div>
+
+          {/* Regulator */}
+          <div className="flex flex-col gap-3 rounded-[10px] border border-[rgba(0,211,149,0.4)] bg-[var(--solvent-bg)] p-4">
+            <div>
+              <p className="text-[13px] font-semibold text-[var(--text-primary)]">🏛️ Regulator</p>
+              <p className="mt-1 text-[11px] leading-[1.5] text-[var(--text-muted)]">Shows full compliance view with ratio bands</p>
+            </div>
+            <button
+              onClick={copyRegulatorLink}
+              className={`inline-flex items-center justify-center gap-1.5 rounded-md border px-3 py-1.5 text-xs transition-colors ${
+                copiedRegulatorLink
+                  ? 'border-[var(--solvent-border)] text-[var(--solvent)]'
+                  : 'border-[var(--solvent)] text-[var(--solvent)] hover:bg-[rgba(0,211,149,0.1)]'
+              }`}
+            >
+              {copiedRegulatorLink ? <Check size={12} /> : <Copy size={12} />}
+              {copiedRegulatorLink ? 'Copied!' : 'Copy Link'}
+            </button>
+          </div>
         </div>
 
         <p className="mb-2 mt-4 text-[11px] uppercase tracking-[0.06em] text-[var(--text-muted)]">Share Via</p>
@@ -329,6 +398,13 @@ export default function AttestProofPage() {
           Verifiers will only see attribute checkmarks and your verified status.
         </p>
         <p className="mt-1 text-xs text-[var(--text-muted)]">Your actual financial figures are never revealed or stored on-chain.</p>
+      </section>
+
+      <section className="w-full rounded-[10px] border border-[var(--border)] bg-[var(--surface)] px-4 py-3">
+        <p className="text-[12px] italic text-[var(--text-muted)]">
+          🔍 This proof is part of your public audit trail. Verifiers can see your proof history at:
+        </p>
+        <p className="mt-1 break-all font-mono text-[11px] text-[var(--accent)]">{verifyLink}</p>
       </section>
 
       <section className="flex w-full gap-2.5 max-sm:flex-col">

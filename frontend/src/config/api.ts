@@ -10,6 +10,7 @@ export const API_ENDPOINTS = {
         ATTEST: `${API_BASE_URL}/api/reserve/attest`,
         VERIFY: `${API_BASE_URL}/api/reserve/verify`,
         HISTORY: (walletAddress: string) => `${API_BASE_URL}/api/reserve/history/${walletAddress}`,
+        PROTOCOL_HISTORY: (protocolName: string) => `${API_BASE_URL}/api/reserve/history/protocol/${encodeURIComponent(protocolName)}`,
         FEED: `${API_BASE_URL}/api/reserve/feed`,
     },
 } as const;

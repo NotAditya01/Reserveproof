@@ -350,6 +350,12 @@ reserveRouter.post('/attest', async (req: Request, res: Response) => {
 
 reserveRouter.post('/verify', async (req: Request, res: Response) => {
   const { proofHash } = req.body as { proofHash?: string };
+  const rawView = req.query.view as string | undefined;
+  const validViews = ['public', 'auditor', 'regulator'] as const;
+  type ViewLevel = (typeof validViews)[number] | 'none';
+  const viewLevel: ViewLevel = validViews.includes(rawView as (typeof validViews)[number])
+    ? (rawView as (typeof validViews)[number])
+    : 'none';
 
   if (!proofHash || typeof proofHash !== 'string') {
     return res.status(400).json({ error: 'proofHash is required' });
@@ -360,20 +366,66 @@ reserveRouter.post('/verify', async (req: Request, res: Response) => {
     return res.status(404).json({ error: 'proof not found or expired' });
   }
 
-  return res.json({
+  // Base fields shared by all view levels
+  const base = {
     protocolName: verification.protocolName,
     solvencyStatus: verification.solvencyStatus,
-    reserveRatio: reserveBandFromStatus(verification.solvencyStatus),
     verified: verification.verified,
     categoryType: verification.categoryType,
-    attributesResults: verification.attributesResults,
     overallVerified: verification.overallVerified,
     issuedAt: verification.issuedAt,
     expiresAt: verification.expiresAt,
     proofHash,
-    txHash: verification.txHash,
     onChain: verification.onChain,
+  };
+
+  // No view param — backward-compatible full response (used by AttestProofPage)
+  if (viewLevel === 'none') {
+    return res.json({
+      ...base,
+      reserveRatio: reserveBandFromStatus(verification.solvencyStatus),
+      attributesResults: verification.attributesResults,
+      txHash: verification.txHash,
+    });
+  }
+
+  // view=public — overall status only, no attribute details
+  if (viewLevel === 'public') {
+    return res.json(base);
+  }
+
+  // Build filtered attributes array for auditor+
+  type StoredAttr = { label?: string; pass?: boolean; enabled?: boolean };
+  const rawResults = verification.attributesResults as Record<string, StoredAttr> | null;
+  const attributes = rawResults
+    ? Object.values(rawResults)
+        .filter((a) => a.enabled !== false)
+        .map((a) => ({ name: a.label ?? 'Attribute', verified: a.pass ?? false }))
+    : [];
+
+  // view=auditor — pass/fail breakdown, no values or bands
+  if (viewLevel === 'auditor') {
+    return res.json({ ...base, attributes });
+  }
+
+  // view=regulator — full compliance view with ratio band + on-chain info
+  return res.json({
+    ...base,
+    attributes,
+    ratioBand: reserveBandFromStatus(verification.solvencyStatus),
+    txHash: verification.txHash,
+    networkId: 'preprod',
   });
+});
+
+
+reserveRouter.get('/history/protocol/:protocolName', async (req: Request, res: Response) => {
+  const protocolName = req.params.protocolName;
+  if (!protocolName) {
+    return res.status(400).json({ error: 'protocolName is required' });
+  }
+  const history = await db.getReserveHistoryByProtocol(protocolName);
+  return res.json({ protocolName, history });
 });
 
 reserveRouter.get('/history/:walletAddress', async (req: Request, res: Response) => {

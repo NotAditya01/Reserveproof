@@ -10,7 +10,7 @@ import {
   XAxis,
   YAxis,
 } from 'recharts';
-import { Clock3, Shield, TrendingUp } from 'lucide-react';
+import { ClipboardList, Clock3, Shield, TrendingUp } from 'lucide-react';
 import { API_ENDPOINTS } from '../config/api';
 import { useWallet } from '../context/WalletContext';
 import type { SolvencyStatus } from '../lib/reserve';
@@ -288,6 +288,13 @@ export default function DashboardPage() {
                     {shareState.status === 'copied' ? 'Link copied' : 'Copy failed'}
                   </p>
                 )}
+                <Link
+                  to={`/verify?hash=${row.proofHash}`}
+                  className="mt-2 flex items-center gap-1.5 justify-center md:w-fit md:ml-auto rounded-[6px] border border-[var(--border)] bg-transparent px-2.5 py-1 text-[11px] text-[var(--text-muted)] transition-all duration-150 hover:border-[var(--accent)] hover:text-[var(--text-primary)]"
+                >
+                  <ClipboardList size={11} />
+                  Audit Trail
+                </Link>
               </div>
             </article>
           ))}

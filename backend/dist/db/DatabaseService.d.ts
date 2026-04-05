@@ -72,6 +72,15 @@ export declare class DatabaseService {
         proofHash: string;
         createdAt: string;
     }>>;
+    getReserveHistoryByProtocol(protocolName: string): Promise<Array<{
+        proofHash: string;
+        solvencyStatus: 'SOLVENT' | 'WARNING' | 'INSOLVENT';
+        categoryType: string | null;
+        createdAt: string;
+        expiresAt: string;
+        onChain: boolean;
+        txHash: string | null;
+    }>>;
     getReserveFeed(limit?: number): Promise<Array<{
         protocolName: string;
         solvencyStatus: 'SOLVENT' | 'WARNING' | 'INSOLVENT';

@@ -303,6 +303,36 @@ export class DatabaseService {
         }));
     }
 
+    async getReserveHistoryByProtocol(protocolName: string): Promise<Array<{
+        proofHash: string;
+        solvencyStatus: 'SOLVENT' | 'WARNING' | 'INSOLVENT';
+        categoryType: string | null;
+        createdAt: string;
+        expiresAt: string;
+        onChain: boolean;
+        txHash: string | null;
+    }>> {
+        const query = `
+            SELECT proof_hash, solvency_status, category_type, created_at, expires_at, on_chain, tx_hash
+            FROM reserve_attestations
+            WHERE LOWER(protocol_name) = LOWER($1)
+              AND verified = true
+              AND proof_hash IS NOT NULL
+            ORDER BY created_at DESC
+            LIMIT 20;
+        `;
+        const result = await this.pool.query(query, [protocolName]);
+        return result.rows.map((row) => ({
+            proofHash: row.proof_hash,
+            solvencyStatus: row.solvency_status,
+            categoryType: row.category_type ?? null,
+            createdAt: new Date(row.created_at).toISOString(),
+            expiresAt: new Date(row.expires_at).toISOString(),
+            onChain: Boolean(row.on_chain),
+            txHash: row.tx_hash ?? null,
+        }));
+    }
+
     async getReserveFeed(limit = 10): Promise<Array<{
         protocolName: string;
         solvencyStatus: 'SOLVENT' | 'WARNING' | 'INSOLVENT';

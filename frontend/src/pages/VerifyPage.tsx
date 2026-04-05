@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Lock, ShieldCheck } from 'lucide-react';
+import { ExternalLink, Lock, ShieldCheck } from 'lucide-react';
 import { useSearchParams } from 'react-router-dom';
 import { API_ENDPOINTS } from '../config/api';
 import type { SolvencyStatus } from '../lib/reserve';
@@ -7,17 +7,32 @@ import type { SolvencyStatus } from '../lib/reserve';
 type VerifyResult = {
   protocolName: string;
   solvencyStatus: SolvencyStatus;
-  reserveRatio: string;
+  reserveRatio?: string;
   verified: boolean;
   categoryType?: string | null;
   attributesResults?: Record<
     string,
     { label?: string; pass?: boolean; output?: string; enabled?: boolean; required?: boolean }
   > | null;
+  attributes?: Array<{ name: string; verified: boolean }>;
   overallVerified?: boolean | null;
   issuedAt: string;
   expiresAt: string;
   proofHash: string;
+  onChain?: boolean;
+  ratioBand?: string;
+  txHash?: string | null;
+  networkId?: string;
+};
+
+type AuditEntry = {
+  proofHash: string;
+  solvencyStatus: SolvencyStatus;
+  categoryType: string | null;
+  createdAt: string;
+  expiresAt: string;
+  onChain: boolean;
+  txHash: string | null;
 };
 
 type RecentVerification = {
@@ -36,11 +51,16 @@ function timeAgo(timestamp: number): string {
 
 export default function VerifyPage() {
   const [searchParams] = useSearchParams();
+  const viewParam = searchParams.get('view'); // null | 'auditor' | 'regulator' | 'public'
+  const effectiveView: 'public' | 'auditor' | 'regulator' =
+    viewParam === 'auditor' ? 'auditor' : viewParam === 'regulator' ? 'regulator' : 'public';
   const [proofHash, setProofHash] = useState(searchParams.get('hash') ?? '');
   const [result, setResult] = useState<VerifyResult | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [recentVerified, setRecentVerified] = useState<RecentVerification[]>([]);
+  const [auditTrail, setAuditTrail] = useState<AuditEntry[]>([]);
+  const [auditLoading, setAuditLoading] = useState(false);
   const [sampleHashes, setSampleHashes] = useState<string[]>([
     '93330f322ef88c31a6ef87cbf32d7229d451618b',
     'c1670d3a1804c32f6db8a88fd7718d22d339ecb',
@@ -53,7 +73,10 @@ export default function VerifyPage() {
       setLoading(true);
       setError(null);
       setResult(null);
-      const response = await fetch(API_ENDPOINTS.RESERVE.VERIFY, {
+      const verifyUrl = viewParam
+        ? `${API_ENDPOINTS.RESERVE.VERIFY}?view=${encodeURIComponent(viewParam)}`
+        : API_ENDPOINTS.RESERVE.VERIFY;
+      const response = await fetch(verifyUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ proofHash: hash }),
@@ -65,6 +88,16 @@ export default function VerifyPage() {
         const next = [{ hash: payload.proofHash as string, at: Date.now() }, ...prev.filter((item) => item.hash !== payload.proofHash)];
         return next.slice(0, 3);
       });
+      // Fetch audit trail for this protocol
+      if (payload.protocolName) {
+        setAuditLoading(true);
+        setAuditTrail([]);
+        fetch(API_ENDPOINTS.RESERVE.PROTOCOL_HISTORY(payload.protocolName as string))
+          .then((r) => (r.ok ? r.json() : Promise.reject()))
+          .then((data) => setAuditTrail((data.history ?? []) as AuditEntry[]))
+          .catch(() => setAuditTrail([]))
+          .finally(() => setAuditLoading(false));
+      }
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Verification failed');
     } finally {
@@ -268,6 +301,29 @@ export default function VerifyPage() {
 
         {result && (
           <div className="surface-card mt-4 p-5 route-fade">
+            {/* View-level banners */}
+            {effectiveView === 'auditor' && (
+              <div
+                className="mb-3 rounded-[8px] border border-[var(--accent)] px-4 py-2.5"
+                style={{ background: 'rgba(108,99,255,0.1)' }}
+              >
+                <p className="text-[12px] font-medium text-[var(--accent)]">
+                  🔍 AUDITOR VIEW — Attribute-level disclosure
+                </p>
+              </div>
+            )}
+            {effectiveView === 'regulator' && (
+              <div
+                className="mb-3 rounded-[8px] border border-[var(--solvent)] px-4 py-2.5"
+                style={{ background: 'rgba(0,211,149,0.1)' }}
+              >
+                <p className="text-[12px] font-medium text-[var(--solvent)]">
+                  🏛️ REGULATOR VIEW — Compliance disclosure
+                </p>
+              </div>
+            )}
+
+            {/* Verified badge */}
             <span
               className={`inline-flex items-center rounded-[4px] border px-2 py-0.5 text-[11px] font-semibold uppercase tracking-[0.05em] ${
                 proofVerified
@@ -287,25 +343,212 @@ export default function VerifyPage() {
               <ShieldCheck size={12} className="text-[var(--accent)]" />
               Verified on Midnight Network
             </p>
-            {result.attributesResults && Object.keys(result.attributesResults).length > 0 && (
-              <div className="mt-3 space-y-1.5">
-                {Object.entries(result.attributesResults).map(([type, value]) => {
-                  if (value.enabled === false) return null;
-                  return (
-                    <div key={type} className="flex items-center justify-between text-xs">
-                      <p className="text-[var(--text-primary)]">{value.label ?? type}</p>
-                      <p className={value.pass ? 'text-[var(--solvent)]' : 'text-[var(--warning)]'}>
-                        {value.pass ? '✅ Verified' : '⚠ Check'}
+
+            {/* Public: no attributes — nudge to request access */}
+            {effectiveView === 'public' && (
+              <p className="mt-3 text-[11px] italic text-[var(--text-muted)]">
+                Request auditor access for attribute-level details.
+              </p>
+            )}
+
+            {/* Auditor + Regulator: attribute pass/fail list */}
+            {(effectiveView === 'auditor' || effectiveView === 'regulator') &&
+              result.attributes && result.attributes.length > 0 && (
+                <div className="mt-3 space-y-1.5">
+                  {result.attributes.map((attr) => (
+                    <div key={attr.name} className="flex items-center justify-between text-xs">
+                      <p className="text-[var(--text-primary)]">{attr.name}</p>
+                      <p className={attr.verified ? 'text-[var(--solvent)]' : 'text-[var(--warning)]'}>
+                        {attr.verified ? '✅ Verified' : '⚠ Check'}
                       </p>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+            {/* Regulator-only: ratio band + network + ZK note */}
+            {effectiveView === 'regulator' && (
+              <div className="mt-3 space-y-2 rounded-[8px] border border-[var(--border)] bg-[var(--surface-2,var(--surface))] p-3">
+                {result.ratioBand && (
+                  <div className="flex items-center justify-between text-xs">
+                    <p className="text-[var(--text-muted)]">Reserve Band</p>
+                    <p className="font-medium text-[var(--text-primary)]">{result.ratioBand}</p>
+                  </div>
+                )}
+                {result.networkId && (
+                  <div className="flex items-center justify-between text-xs">
+                    <p className="text-[var(--text-muted)]">Network</p>
+                    <p className="font-medium text-[var(--text-primary)]">Midnight ({result.networkId})</p>
+                  </div>
+                )}
+                {result.txHash && (
+                  <a
+                    href={`https://preprod.midnightexplorer.com/tx/${result.txHash}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1 text-[11px] text-[var(--accent)] hover:underline"
+                  >
+                    <ExternalLink size={10} />
+                    View on Midnight Explorer
+                  </a>
+                )}
+                <p className="text-[11px] italic text-[var(--text-muted)]">
+                  Raw financial figures are mathematically excluded by the ZK circuit. Only ratio bands are available even at regulator access level.
+                </p>
+              </div>
+            )}
+
+            <p className="mt-2 text-xs text-[var(--text-muted)]">Issued: {new Date(result.issuedAt).toLocaleString()}</p>
+            <p className="mt-0.5 text-xs text-[var(--text-muted)]">Expires: {new Date(result.expiresAt).toLocaleString()}</p>
+            <p className="mt-2 font-mono text-xs text-[var(--accent)]">{result.proofHash}</p>
+          </div>
+        )}
+
+        {/* ── Audit Trail ── */}
+        {result && (
+          <section className="mt-8">
+            <div className="mb-1 flex items-center justify-between">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.1em] text-[var(--text-muted)]">
+                Audit Trail
+              </p>
+              {!auditLoading && auditTrail.length > 0 && (
+                <span className="rounded-full border border-[var(--border)] bg-[var(--surface)] px-2.5 py-0.5 text-[11px] text-[var(--text-muted)]">
+                  {auditTrail.length} proof{auditTrail.length !== 1 ? 's' : ''}
+                </span>
+              )}
+            </div>
+            <p className="mb-4 text-[12px] text-[var(--text-muted)]">Proof history for this protocol</p>
+
+            {auditLoading && (
+              <p className="mt-4 text-xs text-[var(--text-muted)]">Loading history…</p>
+            )}
+
+            {!auditLoading && auditTrail.length === 0 && (
+              <p className="mt-4 text-[12px] italic text-[var(--text-muted)]">
+                This is the first proof from this protocol. Check back to see consistency over time.
+              </p>
+            )}
+
+            {!auditLoading && auditTrail.length > 0 && (
+              <div className="mt-4 space-y-0">
+                {auditTrail.map((entry, idx) => {
+                  const isCurrent = entry.proofHash === result.proofHash;
+                  const isVerified = entry.solvencyStatus !== 'INSOLVENT';
+                  const isLast = idx === auditTrail.length - 1;
+                  return (
+                    <div key={entry.proofHash} className="relative pl-6">
+                      {/* Vertical line */}
+                      {!isLast && (
+                        <div
+                          className="absolute w-px"
+                          style={{
+                            left: '7px',
+                            top: '12px',
+                            bottom: '-12px',
+                            background: 'linear-gradient(to bottom, transparent, var(--border) 10%, var(--border) 90%, transparent)'
+                          }}
+                        />
+                      )}
+
+                      {/* Timeline dot */}
+                      <div
+                        className="absolute rounded-full"
+                        style={{
+                          left: isCurrent ? '-1px' : '0',
+                          top: isCurrent ? '15px' : '16px',
+                          width: isCurrent ? '16px' : '14px',
+                          height: isCurrent ? '16px' : '14px',
+                          border: `2px solid ${isCurrent ? 'var(--accent)' : 'var(--bg)'}`,
+                          background: isCurrent ? 'var(--bg)' : (isVerified ? 'var(--solvent)' : 'var(--insolvent)'),
+                          boxShadow: isCurrent
+                            ? '0 0 10px rgba(108,99,255,0.5)'
+                            : isVerified ? '0 0 8px rgba(0,211,149,0.4)' : '0 0 8px rgba(255,77,77,0.3)',
+                          zIndex: 10,
+                        }}
+                      />
+
+                      {/* Card */}
+                      <div
+                        className="mb-3 ml-3 rounded-[10px] p-[14px_16px] transition-colors duration-150"
+                        style={{
+                          background: isCurrent ? 'rgba(108,99,255,0.05)' : 'var(--surface)',
+                          border: `1px solid ${isCurrent ? 'rgba(108,99,255,0.4)' : 'var(--border)'}`,
+                        }}
+                        onMouseEnter={(e) => {
+                          if (!isCurrent) e.currentTarget.style.borderColor = 'var(--border-hover)';
+                          else e.currentTarget.style.borderColor = 'var(--accent)';
+                        }}
+                        onMouseLeave={(e) => {
+                          if (!isCurrent) e.currentTarget.style.borderColor = 'var(--border)';
+                          else e.currentTarget.style.borderColor = 'rgba(108,99,255,0.4)';
+                        }}
+                      >
+                        {/* Row 1: status badge + CURRENT pill + date */}
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center">
+                            <span
+                              className={`inline-flex items-center rounded-[4px] border px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.04em] ${
+                                entry.solvencyStatus === 'SOLVENT'
+                                  ? 'border-[var(--solvent-border)] bg-[var(--solvent-bg)] text-[var(--solvent)]'
+                                  : entry.solvencyStatus === 'WARNING'
+                                  ? 'border-[rgba(255,184,0,0.3)] bg-[rgba(255,184,0,0.08)] text-[var(--warning)]'
+                                  : 'border-[rgba(220,38,38,0.3)] bg-[var(--insolvent-bg)] text-[var(--insolvent)]'
+                              }`}
+                            >
+                              {entry.solvencyStatus}
+                            </span>
+                            {isCurrent && (
+                              <span
+                                className="ml-1.5 inline-flex items-center rounded-[4px] border border-[var(--accent)] bg-[var(--accent-dim)] px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.04em] text-[var(--accent)]"
+                              >
+                                CURRENT
+                              </span>
+                            )}
+                          </div>
+                          <span className="font-mono text-[11px] text-[var(--text-muted)]">
+                            {new Date(entry.createdAt).toLocaleDateString(undefined, {
+                              month: 'short',
+                              day: 'numeric',
+                              year: 'numeric',
+                            })}
+                          </span>
+                        </div>
+
+                        {/* Row 2: category pill + proof hash */}
+                        <div className="mt-2 flex items-center gap-2">
+                          {entry.categoryType && (
+                            <span
+                              className="inline-flex items-center rounded-[4px] border border-[rgba(108,99,255,0.2)] bg-[var(--accent-dim)] px-2 py-0.5 text-[10px] uppercase tracking-[0.05em] text-[var(--accent)]"
+                            >
+                              {entry.categoryType}
+                            </span>
+                          )}
+                          <span className="flex-1 font-mono text-[11px] text-[var(--text-muted)]">
+                            {entry.proofHash.slice(0, 8)}…{entry.proofHash.slice(-6)}
+                          </span>
+                        </div>
+
+                        {/* Row 3: on-chain link */}
+                        {entry.onChain && entry.txHash && (
+                          <div className="mt-2 flex items-center gap-1">
+                            <ExternalLink size={10} className="text-[var(--accent)]" />
+                            <a
+                              href={`https://preprod.midnightexplorer.com/tx/${entry.txHash}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-[11px] font-medium text-[var(--accent)] no-underline hover:underline"
+                            >
+                              View on Midnight Explorer
+                            </a>
+                          </div>
+                        )}
+                      </div>
                     </div>
                   );
                 })}
               </div>
             )}
-            <p className="mt-2 text-xs text-[var(--text-muted)]">Issued: {new Date(result.issuedAt).toLocaleString()}</p>
-            <p className="mt-0.5 text-xs text-[var(--text-muted)]">Expires: {new Date(result.expiresAt).toLocaleString()}</p>
-            <p className="mt-2 font-mono text-xs text-[var(--accent)]">{result.proofHash}</p>
-          </div>
+          </section>
         )}
 
         <p className="mt-4 inline-flex items-center gap-1.5 text-xs text-[var(--text-muted)]">
