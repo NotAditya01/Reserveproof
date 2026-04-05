@@ -369,10 +369,14 @@ export default function AttestProofPage() {
           </button>
           <button
             onClick={copyVerifyLink}
-            className="inline-flex h-10 flex-1 items-center justify-center gap-1.5 rounded-lg border border-[var(--border)] text-[13px] font-medium text-[var(--text-secondary)] hover:border-[var(--accent)] hover:text-[var(--text-primary)]"
+            className={`inline-flex h-10 flex-1 items-center justify-center gap-1.5 rounded-lg border text-[13px] font-medium transition-colors ${
+              copiedLink
+                 ? 'border-[var(--solvent-border)] text-[var(--solvent)]'
+                 : 'border-[var(--border)] text-[var(--text-secondary)] hover:border-[var(--accent)] hover:text-[var(--text-primary)]'
+            }`}
           >
-            <LinkIcon size={14} />
-            Copy Link
+            {copiedLink ? <Check size={14} /> : <LinkIcon size={14} />}
+            {copiedLink ? 'Copied!' : 'Copy Link'}
           </button>
         </div>
 
