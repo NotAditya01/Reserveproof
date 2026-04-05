@@ -144,8 +144,8 @@ export default function AttestProofPage() {
     window.setTimeout(() => setCopiedHash(false), 2000);
   }
 
-  const auditorLink = verifyUrl(window.location.origin, proofHash) + '?view=auditor';
-  const regulatorLink = verifyUrl(window.location.origin, proofHash) + '?view=regulator';
+  const auditorLink = verifyUrl(window.location.origin, proofHash) + '&view=auditor';
+  const regulatorLink = verifyUrl(window.location.origin, proofHash) + '&view=regulator';
 
   async function copyPublicLink() {
     await navigator.clipboard.writeText(verifyLink);
