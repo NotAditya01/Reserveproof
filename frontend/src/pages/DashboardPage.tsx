@@ -26,6 +26,7 @@ type HistoryRow = {
 };
 
 type Range = '7D' | '30D' | 'All';
+type ShareView = 'public' | 'auditor' | 'regulator';
 
 function toRatio(status: SolvencyStatus): number {
   if (status === 'SOLVENT') return 126;
@@ -42,6 +43,7 @@ export default function DashboardPage() {
   const [rows, setRows] = useState<HistoryRow[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [range, setRange] = useState<Range>('30D');
+  const [openShareMenu, setOpenShareMenu] = useState<string | null>(null);
   const [shareState, setShareState] = useState<{
     hash: string;
     status: 'copied' | 'failed';
@@ -58,13 +60,16 @@ export default function DashboardPage() {
       .catch((e) => setError(e instanceof Error ? e.message : 'Failed to load history'));
   }, [walletAddress]);
 
-  async function share(hash: string) {
+  async function share(hash: string, selectedView: ShareView) {
+    const viewQuery = selectedView === 'public' ? '' : `&view=${selectedView}`;
+
     try {
-      await navigator.clipboard.writeText(`${window.location.origin}/verify?hash=${hash}`);
+      await navigator.clipboard.writeText(`${window.location.origin}/verify?hash=${hash}${viewQuery}`);
       setShareState({ hash, status: 'copied' });
     } catch {
       setShareState({ hash, status: 'failed' });
     } finally {
+      setOpenShareMenu(null);
       window.setTimeout(() => {
         setShareState((current) => (current?.hash === hash ? null : current));
       }, 1800);
@@ -245,64 +250,85 @@ export default function DashboardPage() {
         </div>
       ) : (
         <div className="space-y-2">
-          {rows.map((row) => (
-            <article
-              key={row.proofHash}
-              className="grid gap-3 rounded-[10px] border border-[var(--border)] bg-[var(--surface)] px-5 py-4 hover:border-[var(--border-hover)] md:grid-cols-[1.2fr_1fr_1.3fr] md:items-center"
-            >
-              <div>
-                <div className="flex items-center gap-2">
-                  <span className={`h-2 w-2 rounded-full ${statusDotClass(row.solvencyStatus)}`} />
-                  <p className="text-[15px] font-semibold text-[var(--text-primary)]">{row.protocolName}</p>
+          {rows.map((row) => {
+            const shareMenuOpen = openShareMenu === row.proofHash;
+
+            return (
+              <article
+                key={row.proofHash}
+                className="grid gap-3 rounded-[10px] border border-[var(--border)] bg-[var(--surface)] px-5 py-4 hover:border-[var(--border-hover)] md:grid-cols-[1.2fr_1fr_1.3fr] md:items-center"
+              >
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className={`h-2 w-2 rounded-full ${statusDotClass(row.solvencyStatus)}`} />
+                    <p className="text-[15px] font-semibold text-[var(--text-primary)]">{row.protocolName}</p>
+                  </div>
+                  <p className="mt-1 font-mono text-xs text-[var(--text-muted)]">{new Date(row.createdAt).toLocaleString()}</p>
                 </div>
-                <p className="mt-1 font-mono text-xs text-[var(--text-muted)]">{new Date(row.createdAt).toLocaleString()}</p>
-              </div>
-              <div>
-                <SolvencyBadge status={row.solvencyStatus} />
-                <p className="mt-1 text-xs text-[var(--text-muted)]">Ratio: {ratioBandFromStatus(row.solvencyStatus)}</p>
-                <p className="mt-1 inline-flex items-center gap-1 text-[11px] text-[var(--text-muted)]">
-                  <Clock3 size={11} />
-                  Expires: {new Date(new Date(row.createdAt).getTime() + 90 * 24 * 60 * 60 * 1000).toLocaleDateString()}
-                </p>
-              </div>
-              <div className="md:justify-self-end">
-                <p className="mb-1 text-[10px] uppercase tracking-[0.08em] text-[var(--text-muted)]">Proof ID</p>
-                <p className="font-mono text-xs text-[var(--accent)]">{row.proofHash.slice(0, 10)}...{row.proofHash.slice(-8)}</p>
-                <div className="mt-3 flex gap-2 md:justify-end">
-                  <button
-                    onClick={() => share(row.proofHash)}
-                    className="btn-outline px-4 py-1.5 text-[12px]"
-                  >
-                    Share
-                  </button>
+                <div>
+                  <SolvencyBadge status={row.solvencyStatus} />
+                  <p className="mt-1 text-xs text-[var(--text-muted)]">Ratio: {ratioBandFromStatus(row.solvencyStatus)}</p>
+                  <p className="mt-1 inline-flex items-center gap-1 text-[11px] text-[var(--text-muted)]">
+                    <Clock3 size={11} />
+                    Expires: {new Date(new Date(row.createdAt).getTime() + 90 * 24 * 60 * 60 * 1000).toLocaleDateString()}
+                  </p>
+                </div>
+                <div className="md:justify-self-end">
+                  <p className="mb-1 text-[10px] uppercase tracking-[0.08em] text-[var(--text-muted)]">Proof ID</p>
+                  <p className="font-mono text-xs text-[var(--accent)]">{row.proofHash.slice(0, 10)}...{row.proofHash.slice(-8)}</p>
+                  <div className="relative mt-3 flex gap-2 md:justify-end">
+                    <div className="relative">
+                      <button
+                        onClick={() =>
+                          setOpenShareMenu((current) => (current === row.proofHash ? null : row.proofHash))
+                        }
+                        className="btn-outline px-4 py-1.5 text-[12px]"
+                      >
+                        Share
+                      </button>
+                      {shareMenuOpen && (
+                        <div className="absolute right-0 top-[calc(100%+8px)] z-10 min-w-[148px] rounded-[10px] border border-[var(--border)] bg-[var(--surface-2)] p-1.5 shadow-[0_12px_32px_rgba(0,0,0,0.35)]">
+                          {(['public', 'auditor', 'regulator'] as ShareView[]).map((view) => (
+                            <button
+                              key={view}
+                              onClick={() => share(row.proofHash, view)}
+                              className="flex w-full rounded-[8px] px-3 py-2 text-left text-[11px] font-semibold uppercase tracking-[0.08em] text-[var(--text-secondary)] transition-colors hover:bg-[var(--surface)] hover:text-[var(--text-primary)]"
+                            >
+                              {view}
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                    <Link
+                      to={`/verify?hash=${row.proofHash}`}
+                      className="btn-outline px-4 py-1.5 text-[12px]"
+                    >
+                      View
+                    </Link>
+                  </div>
+                  {shareState?.hash === row.proofHash && (
+                    <p
+                      className={`mt-1 text-[11px] md:text-right ${
+                        shareState.status === 'copied'
+                          ? 'text-[var(--accent)]'
+                          : 'text-[var(--insolvent)]'
+                      }`}
+                    >
+                      {shareState.status === 'copied' ? 'Link copied' : 'Copy failed'}
+                    </p>
+                  )}
                   <Link
                     to={`/verify?hash=${row.proofHash}`}
-                    className="btn-outline px-4 py-1.5 text-[12px]"
+                    className="mt-2 flex items-center gap-1.5 justify-center md:w-fit md:ml-auto rounded-[6px] border border-[var(--border)] bg-transparent px-2.5 py-1 text-[11px] text-[var(--text-muted)] transition-all duration-150 hover:border-[var(--accent)] hover:text-[var(--text-primary)]"
                   >
-                    View
+                    <ClipboardList size={11} />
+                    Audit Trail
                   </Link>
                 </div>
-                {shareState?.hash === row.proofHash && (
-                  <p
-                    className={`mt-1 text-[11px] md:text-right ${
-                      shareState.status === 'copied'
-                        ? 'text-[var(--accent)]'
-                        : 'text-[var(--insolvent)]'
-                    }`}
-                  >
-                    {shareState.status === 'copied' ? 'Link copied' : 'Copy failed'}
-                  </p>
-                )}
-                <Link
-                  to={`/verify?hash=${row.proofHash}`}
-                  className="mt-2 flex items-center gap-1.5 justify-center md:w-fit md:ml-auto rounded-[6px] border border-[var(--border)] bg-transparent px-2.5 py-1 text-[11px] text-[var(--text-muted)] transition-all duration-150 hover:border-[var(--accent)] hover:text-[var(--text-primary)]"
-                >
-                  <ClipboardList size={11} />
-                  Audit Trail
-                </Link>
-              </div>
-            </article>
-          ))}
+              </article>
+            );
+          })}
         </div>
       )}
     </main>
