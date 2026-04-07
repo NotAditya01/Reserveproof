@@ -40,8 +40,12 @@ need to know, and nothing more.
 
 ## Live Demo
 
-🌐 **Frontend:** [reserveproof.vercel.app](https://reserveproof.vercel.app)  
+🌐 **Frontend:** [reserveproof-omega.vercel.app](https://reserveproof-omega.vercel.app/)  
 
+## Contract Address
+
+**Midnight Preprod Contract Address:**  
+`52f640a4de5e4bc7879add4bb56aa806445e36ed20e3325e128e6b2dffef305a`
 
 ---
 
