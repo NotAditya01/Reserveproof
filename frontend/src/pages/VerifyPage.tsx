@@ -54,8 +54,8 @@ export default function VerifyPage() {
   const [auditTrail, setAuditTrail] = useState<AuditEntry[]>([]);
   const [auditLoading, setAuditLoading] = useState(false);
   const [sampleHashes, setSampleHashes] = useState<string[]>([
-    '93330f322ef88c31a6ef87cbf32d7229d451618b',
-    'c1670d3a1804c32f6db8a88fd7718d22d339ecb',
+    '6435cba11c642157b20c2c04f24c74e2b44da88cc81ebf36f538c7364076c2c4',
+    '2b0fdea37584650d9195cf72e7280c6f4fc51daacb8e17bb7f9cbb7eccfc295c',
   ]);
 
   async function verify(targetHash?: string) {

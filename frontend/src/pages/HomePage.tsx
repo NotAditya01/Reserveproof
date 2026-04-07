@@ -100,12 +100,6 @@ export default function HomePage() {
     return [
       ...core,
       {
-        protocolName: 'DeltaFi',
-        solvencyStatus: 'WARNING' as SolvencyStatus,
-        createdAt: new Date(Date.now() - 5 * 60 * 60 * 1000).toISOString(),
-        proofHash: 'f14be4ce92d33ea88f3b5d4126a734af4eeb7189a16c53f3',
-      },
-      {
         protocolName: 'NovaDEX',
         solvencyStatus: 'INSOLVENT' as SolvencyStatus,
         createdAt: new Date(Date.now() - 26 * 60 * 60 * 1000).toISOString(),

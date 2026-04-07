@@ -337,13 +337,13 @@ export default function AttestProofPage() {
             </div>
             <button
               onClick={copyRegulatorLink}
-              className={`btn-outline relative mt-4 w-full border-[1px] px-3 py-2 text-[12px] ${copiedRegulatorLink
+              className={`relative mt-4 inline-flex w-full items-center justify-center gap-1.5 rounded-[8px] border px-3 py-2 text-xs font-medium transition-all duration-300 ${copiedRegulatorLink
                   ? 'border-[var(--solvent-border)] bg-[var(--solvent-bg)] text-[var(--solvent)] hover:shadow-none'
-                  : 'group-hover:border-[var(--solvent)] group-hover:bg-[rgba(0,211,149,0.1)] group-hover:text-[var(--solvent)]'
+                  : 'border-[var(--border)] bg-[var(--surface)] text-[var(--text-secondary)] group-hover:border-[var(--solvent)] group-hover:bg-[rgba(0,211,149,0.1)] group-hover:text-[var(--solvent)]'
                 }`}
             >
               {copiedRegulatorLink ? <Check size={13} /> : <LinkIcon size={13} />}
-              {copiedRegulatorLink ? 'Copied' : 'Copy Regulator Link'}
+              {copiedRegulatorLink ? 'Copied' : 'Copy Link'}
             </button>
           </div>
         </div>
