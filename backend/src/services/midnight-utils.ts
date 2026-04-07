@@ -22,7 +22,7 @@ import {
   PublicKey,
   UnshieldedWallet,
 } from '@midnight-ntwrk/wallet-sdk-unshielded-wallet';
-import { mnemonicToSeedSync, validateMnemonic } from '@scure/bip39';
+import { mnemonicToSeedSync } from '@scure/bip39';
 
 // Enable WebSocket for GraphQL subscriptions
 // @ts-expect-error Required for wallet sync in Node.js
@@ -102,9 +102,6 @@ export function deriveKeys(seed: string) {
   const words = normalized.split(' ');
   if (words.length !== 24) {
     throw new Error('BACKEND_WALLET_SEED must be a 24-word mnemonic phrase');
-  }
-  if (!validateMnemonic(normalized)) {
-    throw new Error('BACKEND_WALLET_SEED is not a valid BIP39 mnemonic');
   }
   const hdWallet = HDWallet.fromSeed(mnemonicToSeedSync(normalized));
   if (hdWallet.type !== 'seedOk') throw new Error('Invalid seed');
