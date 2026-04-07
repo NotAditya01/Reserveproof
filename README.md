@@ -1,40 +1,137 @@
 # ReserveProof
+### The Trust Layer for Web3
 
-ReserveProof is a privacy-preserving proof-of-solvency platform built on Midnight Network.  
-It allows projects to prove solvency status with zero-knowledge circuits while keeping raw financial data private.
+> **Prove solvency. Reveal nothing.**
 
-## Core Capabilities
+Privacy-preserving financial proof infrastructure built on Midnight Network.  
+Any Web3 project can prove what matters — solvency, audits, team lockups, runway —  
+without revealing a single number.
 
-- Generate on-chain solvency attestations backed by Midnight ZK proofs
-- Disclose only verification outcomes (tier/status), not raw reserve amounts
-- Verify attestations publicly using a proof hash
-- Track attestation history and feed entries via backend APIs
+[![Midnight Network](https://img.shields.io/badge/Built%20on-Midnight%20Network-6C63FF?style=flat)](https://midnight.network)
+[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](https://github.com/NotAditya01/Reserveproof/blob/main/LICENSE)
+[![Network: Preprod](https://img.shields.io/badge/Network-Preprod-blue?style=flat)](https://midnight.network)
+
+---
+
+## The Problem
+
+In November 2022, FTX collapsed and wiped out $8 billion of user funds.  
+The reason? Nobody could verify if exchanges actually held what they claimed.
+
+Today every Web3 project faces the same impossible choice:
+- **Publish everything** → expose sensitive data to competitors and attackers
+- **Say "trust us"** → community walks away
+
+There is no middle ground. Until now.
+
+---
+
+## The Solution
+
+ReserveProof uses Midnight Network's zero-knowledge selective disclosure to generate  
+cryptographic proof of financial trustworthiness — proving exactly what verifiers  
+need to know, and nothing more.
+
+> This project directly addresses Midnight Network's own  
+> [Request for Startups](https://midnight.network/request-for-start-ups?tag=finance):  
+> *"DeFi protocol publishes solvency proof using ZK without revealing full balance sheet."*
+
+---
+
+## Live Demo
+
+🌐 **Frontend:** [reserveproof.vercel.app](https://reserveproof.vercel.app)  
+
+
+---
+
+## Key Features
+
+### 6 Project Categories
+Context-aware proof templates for every Web3 use case:
+
+| Category | Trust Signals Proven |
+|---|---|
+| 🏦 Crypto Exchange | Reserves, fund segregation, runway |
+| ⚡ DeFi Protocol | TVL backing, collateral, liquidity, audit |
+| 🚀 NFT Launch | Treasury, team lockup, audit, royalties |
+| ✈️ Airdrop Project | Solvency, vesting, token supply |
+| 🏛️ DAO | Treasury, runway, multi-sig, contributor pay |
+| 📊 Lending Platform | Reserves, collateral, bad debt, audit |
+
+### Selective Disclosure
+Share different proof levels with different audiences:
+
+| View | What Verifier Sees |
+|---|---|
+| **Public** | Overall VERIFIED / UNVERIFIED status only |
+| **Auditor** | Attribute-level pass/fail breakdown |
+| **Regulator** | Full compliance view with ratio bands + contract details |
+
+Raw financial figures are **mathematically excluded** by the ZK circuit —  
+not filtered by the API. Even at regulator level, exact numbers never appear.
+
+### Audit Trail
+Every proof is part of a public, verifiable history.  
+Verifiers can see that trust is consistent over time — not just a one-time claim.
+
+---
 
 ## Architecture
-
-```text
-contracts/   Compact contract and generated proving assets
-backend/     Express API, Midnight integration, PostgreSQL persistence
-frontend/    React + Vite application for attest/verify flows
 ```
+contracts/   Compact smart contract + compiled ZK proving assets
+backend/     Express.js API + Midnight SDK integration + PostgreSQL
+frontend/    React + Vite + TypeScript UI
+```
+
+### ZK Proof Flow
+```
+User submits financial data (stays local)
+         ↓
+Backend computes private witness values
+         ↓
+proveReserveStatus() circuit executes
+         ↓
+Proof server generates ZK proof (~25-30s)
+         ↓
+Backend wallet signs + submits to Midnight Network
+         ↓
+Real TX hash returned → stored in PostgreSQL
+         ↓
+Verifier sees only: ✅ VERIFIED — zero raw data
+```
+
+---
+
+## Tech Stack
+
+- **Blockchain:** Midnight Network (Preprod)
+- **Smart Contract:** Compact language 
+- **ZK Proof Generation:** Midnight Proof Server 7.0.0
+- **Backend:** Express.js + TypeScript + PostgreSQL
+- **Frontend:** React + Vite + TypeScript
+- **Hosting:** Railway (backend + proof server) + Vercel (frontend)
+
+---
 
 ## Prerequisites
 
 - Node.js 22+
 - PostgreSQL 14+
-- Docker (required for Midnight proof server)
-- Midnight Compact compiler
+- Docker (for Midnight proof server)
+- Midnight Compact compiler (`compact`)
 
-## Quick Start
+---
 
-1. Install dependencies:
+## Local Setup
 
+### 1. Install dependencies
 ```bash
 npm run install:all
 ```
 
-2. Create root environment file `/.env`:
-
+### 2. Configure environment
+Create `/.env` at project root:
 ```env
 DB_NAME=reserveproof_db
 DB_USER=postgres
@@ -45,55 +142,81 @@ FRONTEND_URL=http://localhost:5173
 SESSION_SECRET=replace-with-strong-secret
 NETWORK_ID=preprod
 PRIVATE_STATE_PASSWORD=replace-with-strong-password
+INDEXER_URL=https://indexer.preprod.midnight.network/api/v4/graphql
+INDEXER_WS_URL=wss://indexer.preprod.midnight.network/api/v4/graphql/ws
+NODE_URL=https://rpc.preprod.midnight.network
+PROVE_SERVER_URL=http://127.0.0.1:6300
 ```
 
-3. Start proof server (keep running in a separate terminal):
-
+### 3. Start proof server
 ```bash
+# Keep running in a separate terminal
 npm run start-proof-server
 ```
 
-4. Compile contract and deploy:
-
+### 4. Compile contract
 ```bash
+# Requires Midnight Compact compiler
+# Must be done in GitHub Codespaces or machine with AVX2 CPU
 npm run compile
-cd backend && npm run deploy
 ```
 
-`backend/src/deploy.ts` writes `BACKEND_WALLET_SEED` and `CONTRACT_ADDRESS` to `/.env`.  
-`CONTRACT_ADDRESS` is required for proof submission and on-chain verification calls.
+### 5. Deploy contract
+```bash
+cd backend && npm run deploy
+```
+This writes `BACKEND_WALLET_SEED` and `CONTRACT_ADDRESS` to `.env`.  
+Fund the wallet from [Midnight Preprod Faucet](https://faucet.preprod.midnight.network/).
 
-5. Start backend and frontend:
-
+### 6. Start development server
 ```bash
 npm run dev
 ```
 
-6. Set frontend API base URL in `frontend/.env`:
-
+### 7. Set frontend API URL
+Create `frontend/.env`:
 ```env
 VITE_API_BASE_URL=http://localhost:3000
 ```
 
-## ZK Proof Flow (High Level)
+---
 
-1. User submits attestation inputs from frontend.
-2. Backend computes private witness values and calls `proveReserveStatus`.
-3. Contract proves threshold satisfaction and stores public verification result.
-4. Backend stores proof metadata (`proof_hash`, status, tx hash) in PostgreSQL.
-5. Verifiers query by proof hash and receive only disclosed verification outputs.
+## API Reference
 
-## API Surface
+| Method | Endpoint | Description |
+|---|---|---|
+| POST | `/api/reserve/attest` | Generate ZK proof attestation |
+| POST | `/api/reserve/verify` | Verify proof by hash (supports `?view=public\|auditor\|regulator`) |
+| GET | `/api/reserve/history/:walletAddress` | Wallet attestation history |
+| GET | `/api/reserve/history/protocol/:name` | Protocol audit trail |
+| GET | `/api/reserve/feed` | Public live proof feed |
 
-- `POST /api/reserve/attest` Generate and store attestation proof metadata
-- `POST /api/reserve/verify` Verify an attestation by `proofHash`
-- `GET /api/reserve/history/:walletAddress` Fetch wallet attestation history
-- `GET /api/reserve/feed` Fetch latest public attestations
+---
+
+## Production Deployment
+
+| Service | Platform | Notes |
+|---|---|---|
+| Frontend | Vercel | Set `VITE_API_BASE_URL` env var |
+| Backend | Railway | Node.js, root dir: `/`, build: `cd backend && npm install && npm run build` |
+| Proof Server | Railway | Docker image: `midnightntwrk/proof-server:7.0.0` |
+| Database | Supabase | Free PostgreSQL, set `DATABASE_URL` env var |
+
+---
 
 ## Database
 
-Database setup is documented in [DATABASE_SETUP.md](./DATABASE_SETUP.md).
+See [DATABASE_SETUP.md](./DATABASE_SETUP.md) for schema and setup instructions.
+
+---
+
+## Built For
+
+**Rise In × Midnight Network Hackathon 2026**  
+Finance & DeFi Track
+
+---
 
 ## License
 
-MIT
+MIT — See [LICENSE](./LICENSE) for details.

@@ -10,16 +10,20 @@ import {
   Copy,
   ExternalLink,
   Eye,
+  Globe,
   Hash,
   Image,
+  Landmark,
   LayoutDashboard,
   Link as LinkIcon,
   Rocket,
+  Search,
   ShieldCheck,
   Users,
   Zap,
 } from 'lucide-react';
 import { API_ENDPOINTS } from '../config/api';
+import { spawnConfetti } from '../lib/utils';
 
 type VerifyResponse = {
   protocolName: string;
@@ -54,29 +58,6 @@ function shortHash(hash: string): string {
 
 function verifyUrl(origin: string, hash: string): string {
   return `${origin}/verify?hash=${encodeURIComponent(hash)}`;
-}
-
-function spawnConfetti() {
-  const colors = ['#7C6FCD', '#16A34A', '#FFD700', '#60A5FA', '#F472B6'];
-  const particles: HTMLDivElement[] = [];
-  for (let i = 0; i < 35; i += 1) {
-    const node = document.createElement('div');
-    const size = 5 + Math.random() * 3;
-    node.className = 'confetti-particle';
-    node.style.width = `${size}px`;
-    node.style.height = `${size}px`;
-    node.style.borderRadius = Math.random() > 0.5 ? '50%' : '1px';
-    node.style.left = `${Math.random() * 100}vw`;
-    node.style.top = '-10px';
-    node.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)];
-    node.style.setProperty('--drift', `${-50 + Math.random() * 100}px`);
-    node.style.setProperty('--rot', `${Math.random() * 360}deg`);
-    node.style.animationDuration = `${1800 + Math.random() * 1000}ms`;
-    node.style.animationDelay = `${Math.random() * 600}ms`;
-    document.body.appendChild(node);
-    particles.push(node);
-  }
-  window.setTimeout(() => particles.forEach((node) => node.remove()), 3500);
 }
 
 export default function AttestProofPage() {
@@ -167,7 +148,7 @@ export default function AttestProofPage() {
 
   function shareX() {
     const text =
-      'I just generated a ZK proof of solvency on @MidnightNetwork with ReserveProof. No financial data revealed. Verify it here: ' +
+      'I just generated a ZK proof of solvency on @MidnightNtwrk with ReserveProof. No financial data revealed. Verify it here: ' +
       verifyLink;
     window.open(`https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}`, '_blank');
   }
@@ -206,10 +187,10 @@ export default function AttestProofPage() {
     <main className="mx-auto flex min-h-[calc(100vh-52px)] max-w-[560px] flex-col items-center gap-6 px-6 py-12">
       <button
         onClick={() => navigate('/attest')}
-        className="inline-flex self-start text-[13px] text-[var(--text-muted)] hover:text-[var(--text-primary)]"
+        className="btn-outline px-3 py-1.5 text-[12px]"
       >
         <ChevronLeft size={14} className="mr-1 mt-0.5" />
-        New Attestation
+        Back to Attest
       </button>
 
       <section className="text-center">
@@ -228,8 +209,8 @@ export default function AttestProofPage() {
           </p>
           <span
             className={`rounded-[4px] border px-2.5 py-0.5 text-[11px] font-bold uppercase tracking-[0.05em] ${overallVerified
-                ? 'border-[var(--solvent-border)] bg-[var(--solvent-bg)] text-[var(--solvent)]'
-                : 'border-[rgba(220,38,38,0.3)] bg-[var(--insolvent-bg)] text-[var(--insolvent)]'
+              ? 'border-[var(--solvent-border)] bg-[var(--solvent-bg)] text-[var(--solvent)]'
+              : 'border-[rgba(220,38,38,0.3)] bg-[var(--insolvent-bg)] text-[var(--insolvent)]'
               }`}
           >
             {overallVerified ? 'Verified' : 'Unverified'}
@@ -249,10 +230,10 @@ export default function AttestProofPage() {
               <div className="inline-flex items-center gap-2">
                 <span
                   className={`h-[7px] w-[7px] rounded-full ${attribute.enabled
-                      ? attribute.pass
-                        ? 'bg-[var(--solvent)]'
-                        : 'bg-[var(--insolvent)]'
-                      : 'bg-[var(--text-muted)] opacity-30'
+                    ? attribute.pass
+                      ? 'bg-[var(--solvent)]'
+                      : 'bg-[var(--insolvent)]'
+                    : 'bg-[var(--text-muted)] opacity-30'
                     }`}
                 />
                 <span className={`text-[13px] ${attribute.enabled ? 'text-[var(--text-primary)]' : 'text-[var(--text-muted)]'}`}>
@@ -296,59 +277,73 @@ export default function AttestProofPage() {
         <p className="mb-3 text-[11px] uppercase tracking-[0.1em] text-[var(--text-muted)]">Share with Specific Audience</p>
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
           {/* Public */}
-          <div className="flex flex-col gap-3 rounded-[10px] border border-[var(--border)] bg-[var(--surface-2,var(--surface))] p-4">
+          <div className="group relative flex flex-col justify-between overflow-hidden rounded-[10px] border border-[var(--border)] bg-[var(--surface-2)] p-4 transition-all duration-300 hover:border-white/20 hover:bg-[#1a1b1e]">
             <div>
-              <p className="text-[13px] font-semibold text-[var(--text-primary)]">👤 Public</p>
-              <p className="mt-1 text-[11px] leading-[1.5] text-[var(--text-muted)]">Shows overall verified status only</p>
+              <div className="flex items-center gap-2 text-[var(--text-secondary)] transition-colors duration-300 group-hover:text-white">
+                <Globe size={15} />
+                <p className="text-[13px] font-semibold text-[var(--text-primary)]">Public View</p>
+              </div>
+              <p className="mt-2 text-[11px] leading-[1.6] text-[var(--text-muted)]">
+                Displays only the top-level <span className="font-medium text-[var(--text-secondary)] transition-colors group-hover:text-[var(--text-primary)]">VERIFIED</span> status.
+              </p>
             </div>
             <button
               onClick={copyPublicLink}
-              className={`inline-flex items-center justify-center gap-1.5 rounded-md border px-3 py-1.5 text-xs transition-colors ${
-                copiedPublicLink
-                  ? 'border-[var(--solvent-border)] text-[var(--solvent)]'
-                  : 'border-[var(--border)] text-[var(--text-secondary)] hover:border-[var(--accent)] hover:text-[var(--text-primary)]'
-              }`}
+              className={`mt-4 inline-flex w-full items-center justify-center gap-1.5 rounded-[8px] border px-3 py-2 text-xs font-medium transition-all duration-300 ${copiedPublicLink
+                  ? 'border-[var(--solvent-border)] bg-[var(--solvent-bg)] text-[var(--solvent)]'
+                  : 'border-[var(--border)] bg-[var(--surface)] text-[var(--text-secondary)] group-hover:border-white/20 group-hover:text-white'
+                }`}
             >
-              {copiedPublicLink ? <Check size={12} /> : <Copy size={12} />}
-              {copiedPublicLink ? 'Copied!' : 'Copy Link'}
+              {copiedPublicLink ? <Check size={13} /> : <LinkIcon size={13} />}
+              {copiedPublicLink ? 'Copied' : 'Copy Link'}
             </button>
           </div>
 
           {/* Auditor */}
-          <div className="flex flex-col gap-3 rounded-[10px] border border-[rgba(108,99,255,0.4)] bg-[var(--accent-dim)] p-4">
-            <div>
-              <p className="text-[13px] font-semibold text-[var(--text-primary)]">🔍 Auditor</p>
-              <p className="mt-1 text-[11px] leading-[1.5] text-[var(--text-muted)]">Shows attribute pass/fail breakdown</p>
+          <div className="group relative flex flex-col justify-between overflow-hidden rounded-[10px] border border-[var(--border)] bg-[var(--surface-2)] p-4 transition-all duration-300 hover:border-[rgba(108,99,255,0.5)] hover:bg-[rgba(108,99,255,0.03)]">
+            <div className="absolute -right-4 -top-4 h-16 w-16 rounded-full bg-[var(--accent)] opacity-0 blur-xl transition-all duration-500 group-hover:opacity-[0.15]" />
+            <div className="relative">
+              <div className="flex items-center gap-2 text-[var(--text-secondary)] transition-colors duration-300 group-hover:text-[var(--accent)]">
+                <Search size={15} />
+                <p className="text-[13px] font-semibold text-[var(--text-primary)]">Auditor View</p>
+              </div>
+              <p className="mt-2 text-[11px] leading-[1.6] text-[var(--text-muted)]">
+                Includes line-item attribute <span className="font-medium text-[var(--text-secondary)] transition-colors group-hover:text-[var(--text-primary)]">pass/fail breakdown</span>.
+              </p>
             </div>
             <button
               onClick={copyAuditorLink}
-              className={`inline-flex items-center justify-center gap-1.5 rounded-md border px-3 py-1.5 text-xs transition-colors ${
-                copiedAuditorLink
-                  ? 'border-[var(--solvent-border)] text-[var(--solvent)]'
-                  : 'border-[var(--accent)] text-[var(--accent)] hover:bg-[rgba(108,99,255,0.1)]'
-              }`}
+              className={`relative mt-4 inline-flex w-full items-center justify-center gap-1.5 rounded-[8px] border px-3 py-2 text-xs font-medium transition-all duration-300 ${copiedAuditorLink
+                  ? 'border-[var(--solvent-border)] bg-[var(--solvent-bg)] text-[var(--solvent)]'
+                  : 'border-[var(--border)] bg-[var(--surface)] text-[var(--text-secondary)] group-hover:border-[var(--accent)] group-hover:bg-[rgba(108,99,255,0.1)] group-hover:text-[var(--accent)]'
+                }`}
             >
-              {copiedAuditorLink ? <Check size={12} /> : <Copy size={12} />}
-              {copiedAuditorLink ? 'Copied!' : 'Copy Link'}
+              {copiedAuditorLink ? <Check size={13} /> : <LinkIcon size={13} />}
+              {copiedAuditorLink ? 'Copied' : 'Copy Link'}
             </button>
           </div>
 
           {/* Regulator */}
-          <div className="flex flex-col gap-3 rounded-[10px] border border-[rgba(0,211,149,0.4)] bg-[var(--solvent-bg)] p-4">
-            <div>
-              <p className="text-[13px] font-semibold text-[var(--text-primary)]">🏛️ Regulator</p>
-              <p className="mt-1 text-[11px] leading-[1.5] text-[var(--text-muted)]">Shows full compliance view with ratio bands</p>
+          <div className="group relative flex flex-col justify-between overflow-hidden rounded-[10px] border border-[var(--border)] bg-[var(--surface-2)] p-4 transition-all duration-300 hover:border-[rgba(0,211,149,0.5)] hover:bg-[rgba(0,211,149,0.03)]">
+            <div className="absolute -right-4 -top-4 h-16 w-16 rounded-full bg-[var(--solvent)] opacity-0 blur-xl transition-all duration-500 group-hover:opacity-[0.12]" />
+            <div className="relative">
+              <div className="flex items-center gap-2 text-[var(--text-secondary)] transition-colors duration-300 group-hover:text-[var(--solvent)]">
+                <Landmark size={15} />
+                <p className="text-[13px] font-semibold text-[var(--text-primary)]">Regulator View</p>
+              </div>
+              <p className="mt-2 text-[11px] leading-[1.6] text-[var(--text-muted)]">
+                Adds compliance <span className="font-medium text-[var(--text-secondary)] transition-colors group-hover:text-[var(--text-primary)]">ratio bands</span> & tx hashes.
+              </p>
             </div>
             <button
               onClick={copyRegulatorLink}
-              className={`inline-flex items-center justify-center gap-1.5 rounded-md border px-3 py-1.5 text-xs transition-colors ${
-                copiedRegulatorLink
-                  ? 'border-[var(--solvent-border)] text-[var(--solvent)]'
-                  : 'border-[var(--solvent)] text-[var(--solvent)] hover:bg-[rgba(0,211,149,0.1)]'
-              }`}
+              className={`btn-outline relative mt-4 w-full border-[1px] px-3 py-2 text-[12px] ${copiedRegulatorLink
+                  ? 'border-[var(--solvent-border)] bg-[var(--solvent-bg)] text-[var(--solvent)] hover:shadow-none'
+                  : 'group-hover:border-[var(--solvent)] group-hover:bg-[rgba(0,211,149,0.1)] group-hover:text-[var(--solvent)]'
+                }`}
             >
-              {copiedRegulatorLink ? <Check size={12} /> : <Copy size={12} />}
-              {copiedRegulatorLink ? 'Copied!' : 'Copy Link'}
+              {copiedRegulatorLink ? <Check size={13} /> : <LinkIcon size={13} />}
+              {copiedRegulatorLink ? 'Copied' : 'Copy Regulator Link'}
             </button>
           </div>
         </div>
@@ -369,11 +364,10 @@ export default function AttestProofPage() {
           </button>
           <button
             onClick={copyVerifyLink}
-            className={`inline-flex h-10 flex-1 items-center justify-center gap-1.5 rounded-lg border text-[13px] font-medium transition-colors ${
-              copiedLink
-                 ? 'border-[var(--solvent-border)] text-[var(--solvent)]'
-                 : 'border-[var(--border)] text-[var(--text-secondary)] hover:border-[var(--accent)] hover:text-[var(--text-primary)]'
-            }`}
+            className={`inline-flex h-10 flex-1 items-center justify-center gap-1.5 rounded-lg border text-[13px] font-medium transition-colors ${copiedLink
+                ? 'border-[var(--solvent-border)] text-[var(--solvent)]'
+                : 'border-[var(--border)] text-[var(--text-secondary)] hover:border-[var(--accent)] hover:text-[var(--text-primary)]'
+              }`}
           >
             {copiedLink ? <Check size={14} /> : <LinkIcon size={14} />}
             {copiedLink ? 'Copied!' : 'Copy Link'}
@@ -386,8 +380,8 @@ export default function AttestProofPage() {
           <button
             onClick={copyProofHash}
             className={`inline-flex items-center gap-1 rounded-md border px-3 py-1 text-xs ${copiedHash
-                ? 'border-[var(--solvent-border)] text-[var(--solvent)]'
-                : 'border-[var(--border)] text-[var(--text-secondary)]'
+              ? 'border-[var(--solvent-border)] text-[var(--solvent)]'
+              : 'border-[var(--border)] text-[var(--text-secondary)]'
               }`}
           >
             {copiedHash ? <Check size={12} /> : <Copy size={12} />}
@@ -404,26 +398,20 @@ export default function AttestProofPage() {
         <p className="mt-1 text-xs text-[var(--text-muted)]">Your actual financial figures are never revealed or stored on-chain.</p>
       </section>
 
-      <section className="w-full rounded-[10px] border border-[var(--border)] bg-[var(--surface)] px-4 py-3">
-        <p className="text-[12px] italic text-[var(--text-muted)]">
-          🔍 This proof is part of your public audit trail. Verifiers can see your proof history at:
-        </p>
-        <p className="mt-1 break-all font-mono text-[11px] text-[var(--accent)]">{verifyLink}</p>
-      </section>
 
-      <section className="flex w-full gap-2.5 max-sm:flex-col">
+      <section className="mt-4 flex w-full gap-4 max-sm:flex-col">
         <button
           onClick={() => navigate(`/verify?hash=${encodeURIComponent(proofHash)}`)}
-          className="inline-flex h-11 flex-1 items-center justify-center gap-1.5 rounded-lg border border-[var(--border)] text-sm text-[var(--text-secondary)] hover:border-[var(--accent)] hover:text-[var(--text-primary)]"
+          className="btn-outline h-12 flex-1 text-[14px]"
         >
-          <Eye size={15} />
+          <Eye size={16} className="mr-2" />
           View as Verifier
         </button>
         <button
           onClick={() => navigate('/dashboard')}
-          className="inline-flex h-11 flex-1 items-center justify-center gap-1.5 rounded-lg bg-[var(--accent)] text-sm font-semibold text-white hover:-translate-y-px hover:opacity-90"
+          className="btn h-12 flex-1 text-[14px]"
         >
-          <LayoutDashboard size={15} />
+          <LayoutDashboard size={16} className="mr-2" />
           Go to Dashboard
         </button>
       </section>

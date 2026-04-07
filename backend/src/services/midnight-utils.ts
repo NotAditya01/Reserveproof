@@ -4,7 +4,6 @@ import * as path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { WebSocket } from 'ws';
 import * as Rx from 'rxjs';
-import { Buffer } from 'buffer';
 
 // Midnight SDK imports
 import { httpClientProofProvider } from '@midnight-ntwrk/midnight-js-http-client-proof-provider';
@@ -15,7 +14,7 @@ import { setNetworkId, getNetworkId } from '@midnight-ntwrk/midnight-js-network-
 import * as ledger from '@midnight-ntwrk/ledger-v8';
 import { WalletFacade } from '@midnight-ntwrk/wallet-sdk-facade';
 import { DustWallet } from '@midnight-ntwrk/wallet-sdk-dust-wallet';
-import { HDWallet, Roles, generateRandomSeed } from '@midnight-ntwrk/wallet-sdk-hd';
+import { HDWallet, Roles } from '@midnight-ntwrk/wallet-sdk-hd';
 import { ShieldedWallet } from '@midnight-ntwrk/wallet-sdk-shielded';
 import {
   createKeystore,
@@ -23,7 +22,6 @@ import {
   PublicKey,
   UnshieldedWallet,
 } from '@midnight-ntwrk/wallet-sdk-unshielded-wallet';
-import { toHex } from '@midnight-ntwrk/midnight-js-utils';
 import { mnemonicToSeedSync, validateMnemonic } from '@scure/bip39';
 import { wordlist } from '@scure/bip39/wordlists/english.js';
 
@@ -245,10 +243,4 @@ export async function createProviders(
     walletProvider,
     midnightProvider: walletProvider,
   };
-}
-
-
-
-export function generateSeedHex(): string {
-  return toHex(Buffer.from(generateRandomSeed()));
 }

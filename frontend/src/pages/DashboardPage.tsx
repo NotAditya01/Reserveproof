@@ -15,6 +15,7 @@ import { API_ENDPOINTS } from '../config/api';
 import { useWallet } from '../context/WalletContext';
 import type { SolvencyStatus } from '../lib/reserve';
 import { ratioBandFromStatus, statusDotClass } from '../lib/reserve';
+import { shortAddress } from '../lib/utils';
 import SolvencyBadge from '../components/SolvencyBadge';
 
 type HistoryRow = {
@@ -30,10 +31,6 @@ function toRatio(status: SolvencyStatus): number {
   if (status === 'SOLVENT') return 126;
   if (status === 'WARNING') return 110;
   return 94;
-}
-
-function shortAddress(address: string): string {
-  return `${address.slice(0, 6)}...${address.slice(-4)}`;
 }
 
 function initials(address: string): string {
@@ -123,12 +120,15 @@ export default function DashboardPage() {
             </div>
           )}
         </div>
-        <div className="flex items-center gap-4">
-          <Link to="/attest" className="rounded-lg bg-[var(--accent)] px-4 py-2 text-sm font-semibold text-white hover:opacity-90">
+        <div className="flex items-center gap-6">
+          <Link 
+            to="/attest" 
+            className="btn px-5 py-2.5 text-[13px]"
+          >
             + New Attestation
           </Link>
-          <button onClick={disconnectWallet} className="text-sm text-[var(--text-muted)] hover:text-[var(--text-primary)]">
-            Disconnect
+          <button onClick={disconnectWallet} className="text-[13px] font-bold uppercase tracking-wider text-[var(--text-muted)] hover:text-[var(--insolvent)] transition-colors">
+            Logout
           </button>
         </div>
       </header>
@@ -231,10 +231,15 @@ export default function DashboardPage() {
 
       {rows.length === 0 ? (
         <div className="grid place-items-center py-16 text-center">
-          <Shield size={32} className="text-[var(--text-muted)]" />
-          <h3 className="mt-4 text-base font-semibold text-[var(--text-primary)]">No attestations yet</h3>
-          <p className="mt-1 text-[13px] text-[var(--text-muted)]">Generate your first ZK proof of solvency</p>
-          <Link to="/attest" className="mt-5 rounded-lg bg-[var(--accent)] px-4 py-2 text-sm font-semibold text-white hover:opacity-90">
+          <div className="mb-6 inline-flex rounded-full border-[2px] border-[var(--border)] p-5 text-[var(--text-muted)] opacity-50">
+            <Shield size={40} />
+          </div>
+          <h3 className="text-xl font-bold uppercase tracking-tight text-[var(--text-primary)]">No attestations yet</h3>
+          <p className="mt-2 text-[14px] text-[var(--text-muted)]">Generate your first ZK proof of solvency to see it here.</p>
+          <Link 
+            to="/attest" 
+            className="btn mt-8 px-8 py-3.5 text-[15px]"
+          >
             Generate First Proof
           </Link>
         </div>
@@ -263,16 +268,16 @@ export default function DashboardPage() {
               <div className="md:justify-self-end">
                 <p className="mb-1 text-[10px] uppercase tracking-[0.08em] text-[var(--text-muted)]">Proof ID</p>
                 <p className="font-mono text-xs text-[var(--accent)]">{row.proofHash.slice(0, 10)}...{row.proofHash.slice(-8)}</p>
-                <div className="mt-2 flex gap-2 md:justify-end">
+                <div className="mt-3 flex gap-2 md:justify-end">
                   <button
                     onClick={() => share(row.proofHash)}
-                    className="rounded-md border border-[var(--border)] px-3 py-1.5 text-xs text-[var(--text-secondary)] hover:border-[var(--accent)] hover:text-[var(--text-primary)]"
+                    className="btn-outline px-4 py-1.5 text-[12px]"
                   >
                     Share
                   </button>
                   <Link
                     to={`/verify?hash=${row.proofHash}`}
-                    className="rounded-md border border-[var(--border)] px-3 py-1.5 text-xs text-[var(--text-secondary)] hover:border-[var(--accent)] hover:text-[var(--text-primary)]"
+                    className="btn-outline px-4 py-1.5 text-[12px]"
                   >
                     View
                   </Link>

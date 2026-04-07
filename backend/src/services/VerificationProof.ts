@@ -1,11 +1,8 @@
 
 import * as crypto from 'crypto';
-import * as Rx from 'rxjs';
 import { findDeployedContract } from '@midnight-ntwrk/midnight-js-contracts';
 import { CompiledContract } from '@midnight-ntwrk/compact-js';
 import {
-  createMidnightWallet,
-  createProviders,
   loadContractModule,
   zkConfigPath,
 } from './midnight-utils.js';
@@ -101,10 +98,10 @@ export class VerificationProof {
       const reserveScore = BigInt(Math.round(reserveRatio));
 
       // 5. Connect to the deployed contract
-      console.log('📡 Synchronizing Midnight network nonces...');
+      console.log('Synchronizing Midnight network nonces...');
       await walletCtx.wallet.waitForSyncedState();
 
-      console.log('📡 Connecting to deployed contract...');
+      console.log('Connecting to deployed contract...');
       const privateStateId = `epContractState_${requestIdBytes.toString('hex')}`;
       const deployedContract = await (findDeployedContract as any)(providers, {
         compiledContract,
@@ -117,7 +114,7 @@ export class VerificationProof {
       });
 
       // 6. Call the proveReserveStatus circuit — this creates and submits a TX
-      console.log(`🔐 Generating ZK proof with thresholdBigInt: ${thresholdBigInt}, reserveScore: ${reserveScore}`);
+      console.log(`Generating ZK proof with thresholdBigInt: ${thresholdBigInt}, reserveScore: ${reserveScore}`);
       const result = await deployedContract.callTx.proveReserveStatus(
         thresholdBigInt,
         requestId,
@@ -129,7 +126,7 @@ export class VerificationProof {
         ?? (result as any)?.deployTxData?.public?.txHash
         ?? Buffer.from(requestId).toString('hex').slice(0, 64);
 
-      console.log(`✅ Proof submitted on-chain! TX: ${txHash}`);
+      console.log(`Proof submitted on-chain. TX: ${txHash}`);
 
       return {
         success: true,
@@ -139,7 +136,7 @@ export class VerificationProof {
       };
     } catch (error) {
       const errMsg = error instanceof Error ? error.message : String(error);
-      console.error('❌ ZK proof generation/submission error:', errMsg);
+      console.error('ZK proof generation/submission error:', errMsg);
       return {
         success: false,
         requestId: '',

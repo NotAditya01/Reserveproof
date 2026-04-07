@@ -20,12 +20,12 @@ class BackendWalletManagerImpl {
 
   async initialize(seed: string) {
     this.seed = seed;
-    console.log('🔐 Initializing backend wallet...');
+    console.log('Initializing backend wallet...');
     try {
       await this.connect();
-      console.log('✅ Backend wallet ready! Server starting...');
+      console.log('Backend wallet ready. Server starting...');
     } catch (error) {
-      console.error('❌ FATAL ERROR: Failed to initialize backend wallet.');
+      console.error('FATAL ERROR: Failed to initialize backend wallet.');
       console.error(error);
       process.exit(1);
     }
@@ -33,7 +33,7 @@ class BackendWalletManagerImpl {
 
   private async connect() {
     this.walletCtx = await createMidnightWallet(this.seed);
-    console.log('⏳ Syncing with Midnight Network...');
+    console.log('Syncing with Midnight Network...');
     
     // Wait for initial sync
     await Rx.firstValueFrom(
@@ -47,9 +47,7 @@ class BackendWalletManagerImpl {
 
     // Watch for disconnection
     if (this.stateSubscription) this.stateSubscription.unsubscribe();
-    
-    let debounceTimer: NodeJS.Timeout | null = null;
-    
+
     this.stateSubscription = this.walletCtx.wallet.state().subscribe({
       next: (state: any) => {
         // Many chain events toggle isSynced, we only want to reconnect if it gets stuck entirely
@@ -57,16 +55,16 @@ class BackendWalletManagerImpl {
       error: async (err: any) => {
         if (this.isReconnecting) return;
         this.isReconnecting = true;
-        console.error('⚠️ Wallet disconnected, reconnecting...');
+        console.error('Wallet disconnected, reconnecting...');
         
         // Attempt reconnect with 5 second delay
         setTimeout(async () => {
           try {
             await this.connect();
-            console.log('✅ Wallet reconnected');
+            console.log('Wallet reconnected.');
             this.isReconnecting = false;
           } catch (e) {
-            console.error('❌ Wallet reconnect failed:', e);
+            console.error('Wallet reconnect failed:', e);
             this.isReconnecting = false;
           }
         }, 5000);
@@ -75,14 +73,14 @@ class BackendWalletManagerImpl {
          // Same reconnect hook if stream ends
          if (this.isReconnecting) return;
          this.isReconnecting = true;
-         console.warn('⚠️ Wallet stream completed, reconnecting...');
+         console.warn('Wallet stream completed, reconnecting...');
          setTimeout(async () => {
            try {
              await this.connect();
-             console.log('✅ Wallet reconnected');
+             console.log('Wallet reconnected.');
              this.isReconnecting = false;
            } catch (e) {
-             console.error('❌ Wallet reconnect failed:', e);
+             console.error('Wallet reconnect failed:', e);
              this.isReconnecting = false;
            }
          }, 5000);
@@ -91,7 +89,7 @@ class BackendWalletManagerImpl {
   }
 
   async shutdown() {
-    console.log('🛑 Shutting down wallet connection...');
+    console.log('Shutting down wallet connection...');
     if (this.stateSubscription) {
       this.stateSubscription.unsubscribe();
     }

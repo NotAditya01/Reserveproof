@@ -3,6 +3,7 @@ import { ExternalLink, Lock, ShieldCheck } from 'lucide-react';
 import { useSearchParams } from 'react-router-dom';
 import { API_ENDPOINTS } from '../config/api';
 import type { SolvencyStatus } from '../lib/reserve';
+import { timeAgo } from '../lib/utils';
 
 type VerifyResult = {
   protocolName: string;
@@ -39,15 +40,6 @@ type RecentVerification = {
   hash: string;
   at: number;
 };
-
-function timeAgo(timestamp: number): string {
-  const diff = Date.now() - timestamp;
-  const mins = Math.max(1, Math.floor(diff / (1000 * 60)));
-  if (mins < 60) return `${mins}m ago`;
-  const hours = Math.floor(mins / 60);
-  if (hours < 24) return `${hours}h ago`;
-  return `${Math.floor(hours / 24)}d ago`;
-}
 
 export default function VerifyPage() {
   const [searchParams] = useSearchParams();
@@ -127,7 +119,7 @@ export default function VerifyPage() {
     if (proofHash) {
       verify();
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+
   }, []);
 
   function useSample(hash: string) {
@@ -137,9 +129,9 @@ export default function VerifyPage() {
 
   const requiredFailed = Boolean(
     result?.attributesResults &&
-      Object.values(result.attributesResults).some(
-        (attribute) => attribute.required && attribute.pass === false,
-      ),
+    Object.values(result.attributesResults).some(
+      (attribute) => attribute.required && attribute.pass === false,
+    ),
   );
 
   const proofVerified = Boolean(result && result.verified && !requiredFailed);
@@ -277,19 +269,19 @@ export default function VerifyPage() {
         <h1 className="text-[28px] font-extrabold tracking-[-0.02em] text-[var(--text-primary)]">Verify a Reserve Proof</h1>
         <p className="mt-2 text-sm text-[var(--text-secondary)]">Anyone can verify. No wallet required.</p>
 
-        <div className="mt-6 flex">
+        <div className="mt-8 flex gap-3">
           <input
             value={proofHash}
             onChange={(e) => setProofHash(e.target.value.trim())}
-            className="h-12 w-full rounded-l-lg border border-[var(--border)] bg-[var(--surface)] px-4 text-sm font-mono text-[var(--text-primary)] outline-none focus:border-[var(--accent)]"
+            className="h-12 w-full rounded-lg border-[2px] border-[var(--border)] bg-[var(--surface)] px-4 text-sm font-mono text-[var(--text-primary)] outline-none focus:border-[var(--accent)]"
             placeholder="Paste proof hash"
           />
           <button
             onClick={() => verify()}
-            className="h-12 rounded-r-lg bg-[var(--accent)] px-5 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-60"
+            className="btn px-8 text-[14px]"
             disabled={!proofHash || loading}
           >
-            {loading ? 'Verifying...' : 'Verify →'}
+            {loading ? 'Verifying...' : 'Verify'}
           </button>
         </div>
 
@@ -325,11 +317,10 @@ export default function VerifyPage() {
 
             {/* Verified badge */}
             <span
-              className={`inline-flex items-center rounded-[4px] border px-2 py-0.5 text-[11px] font-semibold uppercase tracking-[0.05em] ${
-                proofVerified
+              className={`inline-flex items-center rounded-[4px] border px-2 py-0.5 text-[11px] font-semibold uppercase tracking-[0.05em] ${proofVerified
                   ? 'border-[var(--solvent-border)] bg-[var(--solvent-bg)] text-[var(--solvent)]'
                   : 'border-[rgba(220,38,38,0.3)] bg-[var(--insolvent-bg)] text-[var(--insolvent)]'
-              }`}
+                }`}
             >
               {proofVerified ? 'VERIFIED' : 'UNVERIFIED'}
             </span>
@@ -487,13 +478,12 @@ export default function VerifyPage() {
                         <div className="flex items-center justify-between">
                           <div className="flex items-center">
                             <span
-                              className={`inline-flex items-center rounded-[4px] border px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.04em] ${
-                                entry.solvencyStatus === 'SOLVENT'
+                              className={`inline-flex items-center rounded-[4px] border px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.04em] ${entry.solvencyStatus === 'SOLVENT'
                                   ? 'border-[var(--solvent-border)] bg-[var(--solvent-bg)] text-[var(--solvent)]'
                                   : entry.solvencyStatus === 'WARNING'
-                                  ? 'border-[rgba(255,184,0,0.3)] bg-[rgba(255,184,0,0.08)] text-[var(--warning)]'
-                                  : 'border-[rgba(220,38,38,0.3)] bg-[var(--insolvent-bg)] text-[var(--insolvent)]'
-                              }`}
+                                    ? 'border-[rgba(255,184,0,0.3)] bg-[rgba(255,184,0,0.08)] text-[var(--warning)]'
+                                    : 'border-[rgba(220,38,38,0.3)] bg-[var(--insolvent-bg)] text-[var(--insolvent)]'
+                                }`}
                             >
                               {entry.solvencyStatus}
                             </span>
@@ -558,12 +548,12 @@ export default function VerifyPage() {
 
         <section className="mt-8">
           <p className="text-[11px] uppercase tracking-[0.08em] text-[var(--text-muted)]">Try a Sample Proof</p>
-          <div className="mt-3 flex flex-wrap gap-2">
+          <div className="mt-4 flex flex-wrap gap-4">
             {sampleHashes.map((hash) => (
               <button
                 key={hash}
                 onClick={() => useSample(hash)}
-                className="rounded-md border border-[var(--border)] bg-[var(--surface)] px-3 py-2 font-mono text-xs text-[var(--accent)] hover:border-[var(--accent)]"
+                className="btn-outline px-4 py-2.5 font-mono text-[13px]"
               >
                 {hash.slice(0, 10)}...{hash.slice(-8)}
               </button>

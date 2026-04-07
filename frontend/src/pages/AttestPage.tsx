@@ -9,6 +9,7 @@ import {
   evaluateAttributeState,
   type CategoryType,
 } from '../lib/proofTemplates';
+import { spawnConfetti } from '../lib/utils';
 import { CheckCircle } from 'lucide-react';
 
 const STEP_LABELS = [
@@ -20,29 +21,6 @@ const STEP_LABELS = [
 
 function sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
-}
-
-function spawnConfetti() {
-  const colors = ['#7C6FCD', '#16A34A', '#FFD700', '#60A5FA', '#F472B6'];
-  const particles: HTMLDivElement[] = [];
-  for (let i = 0; i < 35; i += 1) {
-    const node = document.createElement('div');
-    const size = 5 + Math.random() * 3;
-    node.className = 'confetti-particle';
-    node.style.width = `${size}px`;
-    node.style.height = `${size}px`;
-    node.style.borderRadius = Math.random() > 0.5 ? '50%' : '1px';
-    node.style.left = `${Math.random() * 100}vw`;
-    node.style.top = '-10px';
-    node.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)];
-    node.style.setProperty('--drift', `${-50 + Math.random() * 100}px`);
-    node.style.setProperty('--rot', `${Math.random() * 360}deg`);
-    node.style.animationDuration = `${1800 + Math.random() * 1000}ms`;
-    node.style.animationDelay = `${Math.random() * 600}ms`;
-    document.body.appendChild(node);
-    particles.push(node);
-  }
-  window.setTimeout(() => particles.forEach((node) => node.remove()), 3500);
 }
 
 function toNumber(value: string): number {
@@ -193,14 +171,14 @@ export default function AttestPage() {
       }
 
       const payload = await response.json();
-      
+
       clearTimeout(timer1);
       clearTimeout(timer2);
       clearTimeout(timer3);
       setActiveStep(4);
       spawnConfetti();
       await sleep(1500);
-      
+
       setProofHash(payload.proofHash);
       navigate(`/attest/${encodeURIComponent(payload.proofHash)}`);
     } catch (e) {
@@ -221,15 +199,16 @@ export default function AttestPage() {
               <button
                 key={category.type}
                 onClick={() => onCategorySelect(category.type)}
-                className={`rounded-[10px] border p-4 text-left ${
-                  categoryType === category.type
-                    ? 'border-[var(--accent)] bg-[var(--accent-dim)]'
-                    : 'border-[var(--border)] bg-[var(--surface)]'
-                }`}
+                className={`group relative rounded-[10px] border-[1.5px] p-4 text-left transition-all duration-200 ${categoryType === category.type
+                    ? 'border-[var(--accent)] bg-[var(--accent-dim)] shadow-[2px_2px_0_0_rgba(124,111,205,0.15)] lg:translate-x-[-1px] lg:translate-y-[-1px]'
+                    : 'border-[var(--border)] bg-[var(--surface)] hover:border-[var(--border-hover)] hover:bg-[var(--surface-2)]'
+                  }`}
               >
-                <category.icon size={18} className="text-[var(--text-secondary)]" />
-                <p className="mt-2 text-sm font-semibold text-[var(--text-primary)]">{category.label}</p>
-                <p className="mt-0.5 text-[11px] text-[var(--text-muted)]">{category.sublabel}</p>
+                <div className={`mb-3 inline-flex rounded-[8px] bg-[var(--surface-2)] p-2 text-[var(--text-secondary)] transition-transform group-hover:scale-105 group-hover:rotate-3 ${categoryType === category.type ? 'text-[var(--accent)] bg-[rgba(124,111,205,0.1)]' : ''}`}>
+                  <category.icon size={18} />
+                </div>
+                <p className="text-[14px] font-bold uppercase tracking-tight text-[var(--text-primary)]">{category.label}</p>
+                <p className="mt-1 text-[11px] leading-relaxed text-[var(--text-muted)]">{category.sublabel}</p>
               </button>
             ))}
           </div>
@@ -261,9 +240,8 @@ export default function AttestPage() {
                   return (
                     <article
                       key={attribute.type}
-                      className={`mb-2 rounded-[10px] border p-4 transition ${
-                        enabled ? 'border-[var(--border)] bg-[var(--surface)] opacity-100' : 'border-[var(--border)] bg-[var(--surface)] opacity-40'
-                      }`}
+                      className={`mb-2 rounded-[10px] border p-4 transition ${enabled ? 'border-[var(--border)] bg-[var(--surface)] opacity-100' : 'border-[var(--border)] bg-[var(--surface)] opacity-40'
+                        }`}
                     >
                       <div className="flex flex-wrap items-start justify-between gap-4">
                         <div className="flex-1">
@@ -271,14 +249,12 @@ export default function AttestPage() {
                             <button
                               onClick={() => updateToggle(attribute.type)}
                               disabled={state.required}
-                              className={`relative h-5 w-9 rounded-full ${
-                                enabled ? 'bg-[var(--accent)]' : 'bg-[var(--surface-2)]'
-                              } ${state.required ? 'cursor-not-allowed' : ''}`}
+                              className={`relative h-5 w-9 rounded-full ${enabled ? 'bg-[var(--accent)]' : 'bg-[var(--surface-2)]'
+                                } ${state.required ? 'cursor-not-allowed' : ''}`}
                             >
                               <span
-                                className={`absolute top-0.5 h-4 w-4 rounded-full bg-white transition ${
-                                  enabled ? 'left-[18px]' : 'left-0.5'
-                                }`}
+                                className={`absolute top-0.5 h-4 w-4 rounded-full bg-white transition ${enabled ? 'left-[18px]' : 'left-0.5'
+                                  }`}
                               />
                             </button>
                             <p className="ml-2.5 text-sm font-semibold text-[var(--text-primary)]">{attribute.label}</p>
@@ -316,9 +292,9 @@ export default function AttestPage() {
               <button
                 onClick={handleAttest}
                 disabled={loading || walletLoading}
-                className="mt-5 inline-flex h-11 w-full items-center justify-center rounded-lg bg-[var(--accent)] text-sm font-semibold text-white hover:opacity-90 disabled:opacity-60"
+                className="btn mt-8 w-full py-3.5 text-[15px]"
               >
-                {loading ? 'Generating proof...' : 'Generate ZK Proof'}
+                {loading ? 'Generating Proof...' : 'Generate ZK Proof'}
               </button>
             </div>
           )}
@@ -383,13 +359,12 @@ export default function AttestPage() {
                   <div key={label} className="flex flex-col">
                     <div className="flex items-center gap-3">
                       <span
-                        className={`inline-flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full text-[11px] transition-colors duration-300 ${
-                          isComplete
+                        className={`inline-flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full text-[11px] transition-colors duration-300 ${isComplete
                             ? 'bg-[var(--solvent)] text-white'
                             : isActive
                               ? 'bg-[var(--accent)] text-white'
                               : 'bg-[var(--surface-2)] text-[var(--text-muted)]'
-                        }`}
+                          }`}
                       >
                         {isComplete ? <CheckCircle size={12} strokeWidth={3} /> : idx + 1}
                       </span>
@@ -400,10 +375,9 @@ export default function AttestPage() {
                     {/* Progress Bar for Steps 2 and 3 */}
                     {(idx === 1 || idx === 2) && (
                       <div className="ml-8 mt-2 h-1 w-full max-w-[280px] overflow-hidden rounded bg-[var(--surface-2)]">
-                        <div 
-                          className={`h-full bg-[var(--accent)] transition-all ease-linear ${
-                            isComplete ? 'w-full !duration-300' : isActive ? 'w-[98%]' : 'w-0 !duration-0'
-                          } ${isActive && idx === 1 ? '!duration-[23000ms]' : ''} ${isActive && idx === 2 ? '!duration-[25000ms]' : ''}`}
+                        <div
+                          className={`h-full bg-[var(--accent)] transition-all ease-linear ${isComplete ? 'w-full !duration-300' : isActive ? 'w-[98%]' : 'w-0 !duration-0'
+                            } ${isActive && idx === 1 ? '!duration-[23000ms]' : ''} ${isActive && idx === 2 ? '!duration-[25000ms]' : ''}`}
                         />
                       </div>
                     )}
@@ -411,10 +385,10 @@ export default function AttestPage() {
                 );
               })}
             </div>
-            
+
             <p className="mt-6 text-center text-[12px] text-[var(--text-muted)] relative z-10">
-              ZK proofs are computed and verified on-chain. <br/>
-              This typically takes 45-60 seconds.
+              ZK proofs are computed and verified on-chain. <br />
+              This typically takes 20-30 seconds.
             </p>
           </div>
         </div>

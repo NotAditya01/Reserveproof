@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { BarChart3, Building2, Clock3, Hash, Image, Lock, Rocket, Share2, Shield, Users, Zap } from 'lucide-react';
 import { API_ENDPOINTS } from '../config/api';
 import type { SolvencyStatus } from '../lib/reserve';
+import { timeAgo } from '../lib/utils';
 
 type FeedRow = {
   protocolName: string;
@@ -10,15 +11,6 @@ type FeedRow = {
   createdAt: string;
   proofHash: string;
 };
-
-function timeAgo(value: string): string {
-  const diff = Date.now() - new Date(value).getTime();
-  const mins = Math.max(1, Math.floor(diff / (1000 * 60)));
-  if (mins < 60) return `${mins}m ago`;
-  const hours = Math.floor(mins / 60);
-  if (hours < 24) return `${hours}h ago`;
-  return `${Math.floor(hours / 24)}d ago`;
-}
 
 function homepageStatusBadge(status: SolvencyStatus): { label: string; className: string; dotClass: string } {
   if (status === 'SOLVENT') {
@@ -152,7 +144,7 @@ export default function HomePage() {
 
   return (
     <main className="page-shell">
-      <section className="mx-auto grid max-w-[1200px] grid-cols-1 items-center gap-10 px-6 pb-8 pt-10 md:[grid-template-columns:auto_1fr] md:gap-[60px] md:px-[80px] md:pb-[32px] md:pt-[40px]">
+      <section className="mx-auto grid max-w-[1200px] grid-cols-1 items-center gap-10 px-6 pb-4 pt-16 md:[grid-template-columns:auto_1fr] md:gap-[60px] md:px-[80px] md:pb-[16px] md:pt-[72px]">
         <div className="relative mx-auto flex w-fit max-w-[480px] flex-col gap-5 self-center md:mx-0">
           <span className="pointer-events-none absolute left-[-20px] top-[-40px] z-0 select-none whitespace-nowrap font-['Syne',sans-serif] text-[200px] font-black leading-none tracking-[-0.05em] text-[rgba(124,111,205,0.03)] md:text-[320px]">
             ZK
@@ -167,20 +159,20 @@ export default function HomePage() {
             </span>
           </h1>
           <p className="relative z-[1] mt-3 max-w-[380px] text-left text-[14px] font-normal leading-[1.6] text-[var(--text-secondary)]">
-            One proof. Every trust signal.
+            Prove trust without revealing the numbers.
             <br />
-            Zero exposure.
+            Zero-knowledge keeps sensitive data hidden.
           </p>
-          <div className="relative z-[1] mt-5 flex flex-wrap items-center justify-start gap-3">
+          <div className="relative z-[1] mt-8 flex flex-wrap items-center justify-start gap-4">
             <Link
               to="/attest"
-              className="inline-flex h-10 items-center rounded-lg bg-[var(--accent)] px-4 text-[13px] font-semibold text-white hover:-translate-y-px hover:opacity-90"
+              className="btn px-8"
             >
               Attest Your Reserves
             </Link>
             <Link
               to="/verify"
-              className="inline-flex h-10 items-center rounded-lg border border-[var(--border-hover)] px-4 text-[13px] font-semibold text-[var(--text-secondary)] hover:border-[var(--accent)] hover:text-[var(--text-primary)]"
+              className="btn-outline px-8"
             >
               Verify a Proof
             </Link>
@@ -190,37 +182,54 @@ export default function HomePage() {
         <div className="relative flex items-center justify-center">
           <span className="hero-proof-glow" />
           <article className="hero-proof-card">
-            <div className="flex items-center justify-between gap-3">
-              <p className="inline-flex items-center gap-1.5 text-[11px] text-[var(--text-muted)]">
-                <Zap size={13} className="text-[var(--accent)]" />
-                DeFi Protocol • Midnight Network
-              </p>
-              <span className="inline-flex items-center rounded-[4px] border border-[var(--solvent-border)] bg-[var(--solvent-bg)] px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.05em] text-[var(--solvent)]">
-                VERIFIED
+            <div className="hero-proof-card-grid" />
+            <div className="hero-proof-sheen" />
+            <div className="flex items-start justify-between gap-4">
+              <div className="space-y-1">
+                <p className="inline-flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--text-muted)]">
+                  <Zap size={12} className="text-[var(--accent)]" />
+                  DeFi Protocol
+                </p>
+                <p className="text-[11px] text-[var(--text-secondary)]">Midnight Network</p>
+              </div>
+              <span className="hero-proof-badge">
+                Verified
               </span>
             </div>
-            <p className="my-[10px] text-[18px] font-bold text-[var(--text-primary)]">Aave Protocol</p>
-            <div className="h-px w-full bg-[var(--border)]" />
-            <div className="mt-2">
+            <div className="mt-6">
+              <p className="text-[22px] font-black leading-none tracking-[-0.05em] text-[var(--text-primary)]">Aave Protocol</p>
+            </div>
+            <div className="hero-proof-divider mt-4" />
+            <div className="mt-2.5 space-y-0.5">
               {['Reserve Ratio', 'Collateral Ratio', 'Liquidity Depth', 'Smart Contract Audited'].map((item, index) => (
-                <div key={item} className={`flex items-center justify-between py-2 ${index < 3 ? 'border-b border-[var(--border)]' : ''}`}>
-                  <p className="inline-flex items-center gap-2 text-[13px] text-[var(--text-primary)]">
-                    <span className="h-2 w-2 rounded-full bg-[var(--solvent)]" />
+                <div key={item} className={`hero-proof-row ${index < 3 ? 'hero-proof-row-border' : ''}`}>
+                  <p className="inline-flex items-center gap-3 text-[13px] font-medium text-[var(--text-primary)]">
+                    <span className="hero-proof-dot" />
                     {item}
                   </p>
-                  <span className="font-mono text-xs text-[var(--solvent)]">✓ Verified</span>
+                  <span className="hero-proof-status">Verified</span>
                 </div>
               ))}
             </div>
-            <div className="my-3 h-px w-full bg-[var(--border)]" />
-            <p className="inline-flex items-center gap-1.5 text-[11px] text-[var(--text-muted)]">
-              <Clock3 size={11} />
-              Issued: 22/03/2026  •  Expires: 20/06/2026
-            </p>
-            <p className="mt-1.5 inline-flex items-center gap-1.5 font-mono text-[11px] text-[var(--accent)]">
-              <Hash size={11} className="text-[var(--text-muted)]" />
-              0x7c4f...9a2e
-            </p>
+            <div className="hero-proof-footer">
+              <div className="hero-proof-hash">
+                <div className="hero-proof-meta-inline">
+                  <p className="hero-proof-meta-label">
+                    <Clock3 size={10} />
+                    Issued: 22/03/2026
+                  </p>
+                  <p className="hero-proof-meta-label">
+                    <Clock3 size={10} />
+                    Expires: 20/06/2026
+                  </p>
+                </div>
+                <p className="hero-proof-meta-label mt-1.5">
+                  <Hash size={10} />
+                  Proof Hash
+                </p>
+                <p className="mt-1 font-mono text-[12px] tracking-[0.08em] text-[var(--accent-soft)]">0x7c4f...9a2e</p>
+              </div>
+            </div>
           </article>
         </div>
       </section>
@@ -256,21 +265,30 @@ export default function HomePage() {
         </div>
       </section>
 
-      <section className="mx-auto max-w-[720px] px-6 pb-10 pt-10">
-        <p className="section-label text-center">How It Works</p>
-        <div className="mt-6">
-          {flow.map((step, index) => (
-            <article key={step.id} className={`mx-auto flex max-w-[600px] items-center gap-5 rounded-xl border border-[var(--border)] bg-[var(--surface)] px-5 py-3.5 ${index === 0 ? 'md:ml-0 md:mr-auto' : ''} ${index === 1 ? 'md:ml-12 md:mr-auto' : ''} ${index === 2 ? 'md:ml-24 md:mr-auto' : ''} ${index < flow.length - 1 ? 'mb-2' : ''}`}>
-              <div>
-                <p className="font-mono text-[11px] font-bold tracking-[0.1em] text-[var(--accent)]">{step.id}</p>
-                <div className="mt-2 w-fit rounded-[10px] border border-[rgba(124,111,205,0.2)] bg-[var(--accent-dim)] p-2.5">
-                  <step.icon size={18} className="text-[var(--accent)]" />
-                </div>
+      <section className="mx-auto max-w-[1100px] px-6 pb-20 pt-12">
+        <h2 className="mb-12 text-center font-['Syne',sans-serif] text-[32px] font-black uppercase tracking-[0.15em] text-[var(--text-primary)]">
+          How It Works
+        </h2>
+        <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
+          {flow.map((step) => (
+            <article 
+              key={step.id} 
+              className="group relative overflow-hidden rounded-[12px] border-[1.5px] border-[var(--border)] bg-[var(--surface)] p-8 transition-all duration-300 hover:-translate-y-1 hover:border-[var(--accent)] hover:shadow-[0_8px_30px_rgba(108,99,255,0.1)]"
+            >
+              <span className="absolute right-6 top-6 font-['Syne',sans-serif] text-[48px] font-black leading-none text-[var(--text-primary)] opacity-5 transition-opacity group-hover:opacity-10">
+                {step.id}
+              </span>
+              
+              <div className="mb-6 inline-flex rounded-[12px] border border-[rgba(124,111,205,0.2)] bg-[var(--accent-dim)] p-3 text-[var(--accent)] transition-transform duration-300 group-hover:scale-110 group-hover:rotate-[12deg]">
+                <step.icon size={24} />
               </div>
-              <div className="flex-1">
-                <h3 className="mb-2 font-['Syne',sans-serif] text-[16px] font-semibold text-[var(--text-primary)]">{step.title}</h3>
-                <p className="max-w-[480px] text-[13px] leading-[1.65] text-[var(--text-secondary)]">{step.description}</p>
-              </div>
+
+              <h3 className="mb-3 font-['Syne',sans-serif] text-[20px] font-bold uppercase tracking-tight text-[var(--text-primary)]">
+                {step.title}
+              </h3>
+              <p className="text-[14px] leading-[1.6] text-[var(--text-secondary)]">
+                {step.description}
+              </p>
             </article>
           ))}
         </div>

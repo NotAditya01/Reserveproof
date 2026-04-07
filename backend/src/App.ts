@@ -16,9 +16,9 @@ const dbService = new DatabaseService();
 async function startServer() {
   try {
     // Initialize Database (Must complete before server starts)
-    console.log('🔗 Attempting to initialize database...');
+    console.log('Attempting to initialize database...');
     await dbService.initDb();
-    console.log('✅ Database connection successful!');
+    console.log('Database connection successful.');
 
     // Global Middleware Setup
     app.use(express.json()); // Parses JSON bodies
@@ -53,14 +53,14 @@ async function startServer() {
     // Initialize Persistent Backend Wallet (Waits for full sync)
     const backendSeed = process.env.BACKEND_WALLET_SEED;
     if (!backendSeed) {
-      console.error('❌ FATAL ERROR: BACKEND_WALLET_SEED is missing from environment.');
+      console.error('FATAL ERROR: BACKEND_WALLET_SEED is missing from environment.');
       process.exit(1);
     }
     await BackendWalletManager.initialize(backendSeed);
 
     // Server Start (Only runs if DB & Wallet connection succeeded)
     const server = app.listen(PORT, () => {
-      console.log(`⚡️ Server is running at http://localhost:${PORT}`);
+      console.log(`Server is running at http://localhost:${PORT}`);
     });
 
     process.on('SIGTERM', async () => {
@@ -82,7 +82,7 @@ async function startServer() {
     });
 
   } catch (error) {
-    console.error('❌ FATAL ERROR: Server startup failed.', error);
+    console.error('FATAL ERROR: Server startup failed.', error);
     process.exit(1);
   }
 }

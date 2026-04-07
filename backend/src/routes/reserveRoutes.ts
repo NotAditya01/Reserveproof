@@ -290,7 +290,7 @@ reserveRouter.post('/attest', async (req: Request, res: Response) => {
 
   let proofResult: { success: boolean; requestId: string; salt: string; txHash: string; error?: string };
   try {
-    console.log(`[API] 🚀 Initiating ZK proof generation...`);
+    console.log('[API] Initiating ZK proof generation...');
     const startTime = Date.now();
     
     const { VerificationProof } = await import('../services/VerificationProof.js');
@@ -301,10 +301,10 @@ reserveRouter.post('/attest', async (req: Request, res: Response) => {
     });
     
     const durationSec = ((Date.now() - startTime) / 1000).toFixed(2);
-    console.log(`[API] 🎉 ZK proof generated successfully in ${durationSec}s!`);
+    console.log(`[API] ZK proof generated successfully in ${durationSec}s.`);
   } catch (runtimeError) {
     const message = runtimeError instanceof Error ? runtimeError.message : String(runtimeError);
-    console.error(`[API] ❌ ZK proof generation/submission error: ${message}`);
+    console.error(`[API] ZK proof generation/submission error: ${message}`);
     return res.status(500).json({
       error: 'ZK proof generation failed',
       details: message,

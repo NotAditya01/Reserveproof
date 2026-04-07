@@ -70,10 +70,10 @@ async function main() {
   // 1. Contract compilation check
   const contractIndexPath = path.join(zkConfigPath, 'contract', 'index.js');
   if (!fs.existsSync(contractIndexPath)) {
-    console.error('❌ Contract not compiled! Run: npm run compile');
+    console.error('Contract not compiled. Run: npm run compile');
     process.exit(1);
   }
-  console.log('✅ Compiled contract found\n');
+  console.log('Compiled contract found.\n');
 
   // 2. Backend wallet seed (24-word mnemonic)
   const seed = (process.env.BACKEND_WALLET_SEED ?? '').trim();
@@ -99,7 +99,7 @@ async function main() {
     ),
   );
 
-  console.log('\n  ✅ Wallet synced!\n');
+  console.log('\n  Wallet synced.\n');
 
   const address = walletCtx.unshieldedKeystore.getBech32Address();
   const { unshieldedToken } = await import('@midnight-ntwrk/ledger-v8');
@@ -109,7 +109,7 @@ async function main() {
 
   // 4. Fund wallet — preprod requires manual faucet funding
   if (balance === 0n) {
-    console.log('  ⚠️  Balance is 0 — fund this wallet from the Midnight faucet:\n');
+    console.log('  Balance is 0. Fund this wallet from the Midnight faucet:\n');
     console.log('      https://faucet.preprod.midnight.network/\n');
     console.log(`      Wallet Address: ${address}\n`);
     console.log('  Waiting for funds (poll every 15s)...');
@@ -123,7 +123,7 @@ async function main() {
         }),
       ),
     );
-    console.log('\n  ✅ Funds received!\n');
+    console.log('\n  Funds received.\n');
   }
 
   // 5. DUST setup
@@ -173,7 +173,7 @@ async function main() {
     });
     await Promise.race([waitForDust, timeout]);
   }
-  console.log('  ✅ DUST tokens ready!\n');
+  console.log('  DUST tokens ready.\n');
 
   // 6. Deploy contract
   console.log('─── Deploying Contract ─────────────────────────────────────────\n');
@@ -203,12 +203,12 @@ async function main() {
   });
 
   const contractAddress = (deployed as any).deployTxData.public.contractAddress;
-  console.log(`  ✅ Contract deployed successfully!\n`);
+  console.log('  Contract deployed successfully.\n');
   console.log(`  Contract Address: ${contractAddress}\n`);
 
   // 7. Save to .env
   setEnvValue('CONTRACT_ADDRESS', contractAddress);
-  console.log('  ✅ CONTRACT_ADDRESS saved to .env\n');
+  console.log('  CONTRACT_ADDRESS saved to .env\n');
 
   // 8. Save deployment.json
   const deploymentInfo = {
@@ -220,13 +220,13 @@ async function main() {
     path.resolve(__dirname, '..', '..', 'deployment.json'),
     JSON.stringify(deploymentInfo, null, 2),
   );
-  console.log('  ✅ Saved to deployment.json\n');
+  console.log('  Saved to deployment.json\n');
 
   await walletCtx.wallet.stop();
   console.log('─── Deployment Complete! ────────────────────────────────────────\n');
 }
 
 main().catch((err) => {
-  console.error('❌ Deploy failed:', err);
+  console.error('Deploy failed:', err);
   process.exit(1);
 });
