@@ -54,8 +54,8 @@ export default function VerifyPage() {
   const [auditTrail, setAuditTrail] = useState<AuditEntry[]>([]);
   const [auditLoading, setAuditLoading] = useState(false);
   const [sampleHashes, setSampleHashes] = useState<string[]>([
-    '6435cba11c642157b20c2c04f24c74e2b44da88cc81ebf36f538c7364076c2c4',
-    '2b0fdea37584650d9195cf72e7280c6f4fc51daacb8e17bb7f9cbb7eccfc295c',
+    '13e8cc9806a95034bf95d7c64149fef12048c820475c9272b2e9b0b3732c04e9',
+    'bdb8630bb0271d797db9fbfefde287a594225f51ff2eb8d107045d0b536ac08b',
   ]);
 
   async function verify(targetHash?: string) {
@@ -373,15 +373,20 @@ export default function VerifyPage() {
                   </div>
                 )}
                 {result.txHash && (
-                  <a
-                    href={`https://preprod.midnightexplorer.com/tx/${result.txHash}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex items-center gap-1 text-[11px] text-[var(--accent)] hover:underline"
-                  >
-                    <ExternalLink size={10} />
-                    View on Midnight Explorer
-                  </a>
+                  <>
+                    <a
+                      href={`https://preprod.midnightexplorer.com/tx/${result.txHash}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1 text-[11px] text-[var(--accent)] hover:underline"
+                    >
+                      <ExternalLink size={10} />
+                      View on Midnight Explorer
+                    </a>
+                    <p className="text-[11px] text-[var(--text-muted)]">
+                      Midnight Preprod Explorer may be temporarily unavailable even when the transaction is on-chain.
+                    </p>
+                  </>
                 )}
                 <p className="text-[11px] italic text-[var(--text-muted)]">
                   Raw financial figures are mathematically excluded by the ZK circuit. Only ratio bands are available even at regulator access level.
