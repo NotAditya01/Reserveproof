@@ -53,7 +53,7 @@ export default function VerifyPage() {
   const [recentVerified, setRecentVerified] = useState<RecentVerification[]>([]);
   const [auditTrail, setAuditTrail] = useState<AuditEntry[]>([]);
   const [auditLoading, setAuditLoading] = useState(false);
-  const [sampleHashes, setSampleHashes] = useState<string[]>([
+  const [sampleHashes] = useState<string[]>([
     '13e8cc9806a95034bf95d7c64149fef12048c820475c9272b2e9b0b3732c04e9',
     'bdb8630bb0271d797db9fbfefde287a594225f51ff2eb8d107045d0b536ac08b',
   ]);
@@ -98,24 +98,6 @@ export default function VerifyPage() {
   }
 
   useEffect(() => {
-    fetch(API_ENDPOINTS.RESERVE.FEED)
-      .then(async (res) => {
-        if (!res.ok) throw new Error('Failed');
-        return res.json();
-      })
-      .then((data) => {
-        const hashes = (data.feed ?? [])
-          .map((item: { proofHash?: string }) => item.proofHash)
-          .filter(Boolean)
-          .slice(0, 2);
-        if (hashes.length >= 2) {
-          setSampleHashes(hashes);
-        }
-      })
-      .catch(() => {
-        // Keep fallback hashes.
-      });
-
     if (proofHash) {
       verify();
     }
