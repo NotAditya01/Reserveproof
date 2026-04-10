@@ -356,13 +356,13 @@ export default function VerifyPage() {
                 )}
                 {result.txHash && (
                   <a
-                    href={`https://preprod.midnightexplorer.com/tx/${result.txHash}`}
+                    href={`https://explorer.1am.xyz/tx/${result.txHash}?network=preprod`}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="inline-flex items-center gap-1 text-[11px] text-[var(--accent)] hover:underline"
+                    className="group inline-flex items-center gap-1 text-[11px] text-[var(--accent)] hover:underline"
                   >
-                    <ExternalLink size={10} />
-                    View on Midnight Explorer
+                    <ExternalLink size={10} className="transition-transform duration-200 group-hover:-translate-y-[2px] group-hover:translate-x-[2px]" />
+                    View on Explorer
                   </a>
                 )}
                 <p className="text-[11px] italic text-[var(--text-muted)]">
@@ -502,17 +502,15 @@ export default function VerifyPage() {
 
                         {/* Row 3: on-chain link */}
                         {entry.onChain && entry.txHash && (
-                          <div className="mt-2 flex items-center gap-1">
-                            <ExternalLink size={10} className="text-[var(--accent)]" />
-                            <a
-                              href={`https://preprod.midnightexplorer.com/tx/${entry.txHash}`}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="text-[11px] font-medium text-[var(--accent)] no-underline hover:underline"
-                            >
-                              View on Midnight Explorer
-                            </a>
-                          </div>
+                          <a
+                            href={`https://explorer.1am.xyz/tx/${entry.txHash}?network=preprod`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="group mt-2 inline-flex items-center gap-1 text-[11px] font-medium text-[var(--accent)] no-underline hover:underline"
+                          >
+                            <ExternalLink size={10} className="transition-transform duration-200 group-hover:-translate-y-[2px] group-hover:translate-x-[2px]" />
+                            View on Explorer
+                          </a>
                         )}
                       </div>
                     </div>

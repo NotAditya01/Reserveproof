@@ -259,13 +259,13 @@ export default function AttestProofPage() {
           </p>
           {data.txHash && (
             <a
-              href={`https://preprod.midnightexplorer.com/tx/${data.txHash}`}
+              href={`https://explorer.1am.xyz/tx/${data.txHash}?network=preprod`}
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex items-center gap-1.5 font-mono text-[11px] text-[var(--accent)] hover:underline"
+              className="group inline-flex items-center gap-1.5 font-mono text-[11px] text-[var(--accent)] hover:underline"
             >
-              <ExternalLink size={11} className="text-[var(--text-muted)]" />
-              View on Midnight Explorer
+              <ExternalLink size={11} className="text-[var(--text-muted)] transition-transform duration-200 group-hover:-translate-y-[2px] group-hover:translate-x-[2px]" />
+              View on Explorer
             </a>
           )}
         </div>
