@@ -258,20 +258,15 @@ export default function AttestProofPage() {
             Proof: {shortHash(proofHash)}
           </p>
           {data.txHash && (
-            <>
-              <a
-                href={`https://preprod.midnightexplorer.com/tx/${data.txHash}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-1.5 font-mono text-[11px] text-[var(--accent)] hover:underline"
-              >
-                <ExternalLink size={11} className="text-[var(--text-muted)]" />
-                View on Midnight Explorer
-              </a>
-              <p className="text-[11px] text-[var(--text-muted)]">
-                Midnight Preprod Explorer may be temporarily unavailable even when the transaction is on-chain.
-              </p>
-            </>
+            <a
+              href={`https://preprod.midnightexplorer.com/tx/${data.txHash}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1.5 font-mono text-[11px] text-[var(--accent)] hover:underline"
+            >
+              <ExternalLink size={11} className="text-[var(--text-muted)]" />
+              View on Midnight Explorer
+            </a>
           )}
         </div>
       </section>

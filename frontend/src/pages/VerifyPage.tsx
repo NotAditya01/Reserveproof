@@ -355,20 +355,15 @@ export default function VerifyPage() {
                   </div>
                 )}
                 {result.txHash && (
-                  <>
-                    <a
-                      href={`https://preprod.midnightexplorer.com/tx/${result.txHash}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-flex items-center gap-1 text-[11px] text-[var(--accent)] hover:underline"
-                    >
-                      <ExternalLink size={10} />
-                      View on Midnight Explorer
-                    </a>
-                    <p className="text-[11px] text-[var(--text-muted)]">
-                      Midnight Preprod Explorer may be temporarily unavailable even when the transaction is on-chain.
-                    </p>
-                  </>
+                  <a
+                    href={`https://preprod.midnightexplorer.com/tx/${result.txHash}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1 text-[11px] text-[var(--accent)] hover:underline"
+                  >
+                    <ExternalLink size={10} />
+                    View on Midnight Explorer
+                  </a>
                 )}
                 <p className="text-[11px] italic text-[var(--text-muted)]">
                   Raw financial figures are mathematically excluded by the ZK circuit. Only ratio bands are available even at regulator access level.
