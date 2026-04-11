@@ -5,8 +5,8 @@
   "main": "dist/App.js",
   "scripts": {
     "build": "tsc && cp -r ../contracts/managed ./dist/managed",
-    "start": "node --max-old-space-size=2048 -r dotenv/config dist/App.js dotenv_config_path=../.env",
-    "dev": "tsc --pretty false && node --max-old-space-size=2048 -r dotenv/config dist/App.js dotenv_config_path=../.env",
+    "start": "node --optimize-for-size --always-compact --max-old-space-size=460 -r dotenv/config dist/App.js dotenv_config_path=../.env",
+    "dev": "tsc --pretty false && node --optimize-for-size --always-compact --max-old-space-size=460 -r dotenv/config dist/App.js dotenv_config_path=../.env",
     "deploy": "tsx src/deploy.ts",
     "test": "echo 'No tests yet' && exit 0"
   },
