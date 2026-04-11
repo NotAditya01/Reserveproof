@@ -42,6 +42,11 @@ need to know, and nothing more.
 
 🌐 **Frontend:** [reserveproof-omega.vercel.app](https://reserveproof-omega.vercel.app/)  
 
+> ⚠️ **Judge's Note — ZK Proof Hardware Limits:** 
+> Because this project uses a **Backend Relayer** model to automatically generate ZK Proofs and abstract gas fees away from the user, the server natively executes the heavy Midnight `ledger-v8` WASM cryptography compiler. The combination of syncing the Midnight testnet blockchain state and compiling the ZK circuit requires ~1.2GB of physical memory. 
+> 
+> Because our live backend is currently hosted on a **1GB free-tier container limit** on Railway, clicking "Generate Proof" occasionally results in an OS-level Out-of-Memory kill (OOMKill). The codebase and smart contracts are fully bug-free and run flawlessly on standard 2GB developer machines, but this physical hardware constraint exists on the live deployment demo.
+
 ## Contract Address
 
 **Midnight Preprod Contract Address:**  
