@@ -6,22 +6,33 @@ import { EncryptionService } from '../utils/EncryptionService.js';
 import { DatabaseService } from '../db/DatabaseService.js';
 import { User } from './User.js';
 
-/**
- * UserAccountManager - Singleton service for managing user accounts and sessions
- * Handles multiple concurrent users with session-based wallet management
- */
+
 export class UserAccountManager {
     private static instance: UserAccountManager | null = null;
     private walletManager: WalletManager;
     private encryptionService: EncryptionService;
     private db: DatabaseService;
     private activeSessions: Map<string, User>;
+    private sessionTimestamps: Map<string, number>;
+    private cleanupInterval: ReturnType<typeof setInterval> | null = null;
 
     private constructor() {
         this.walletManager = new WalletManager();
         this.encryptionService = new EncryptionService();
         this.db = new DatabaseService();
         this.activeSessions = new Map();
+        this.sessionTimestamps = new Map();
+
+        this.cleanupInterval = setInterval(() => {
+            const now = Date.now();
+            const TIMEOUT = 30 * 60 * 1000;  // 30 minutes
+
+            for (const [sessionId, timestamp] of this.sessionTimestamps) {
+                if (now - timestamp > TIMEOUT) {
+                    this.logout(sessionId).catch(e => console.error("Error during session auto-cleanup:", e));
+                }
+            }
+        }, 5 * 60 * 1000);
     }
 
     public static getInstance(): UserAccountManager {
@@ -33,6 +44,9 @@ export class UserAccountManager {
 
     public static async cleanup(): Promise<void> {
         if (UserAccountManager.instance) {
+            if (UserAccountManager.instance.cleanupInterval) {
+                clearInterval(UserAccountManager.instance.cleanupInterval);
+            }
             // Close all active wallets
             for (const [, user] of UserAccountManager.instance.activeSessions) {
                 if (user.wallet) {
@@ -40,7 +54,7 @@ export class UserAccountManager {
                 }
             }
             UserAccountManager.instance.activeSessions.clear();
-            
+
             // Close database connection
             await UserAccountManager.instance.db.close();
             UserAccountManager.instance = null;
@@ -135,25 +149,46 @@ export class UserAccountManager {
         user.wallet = wallet;
 
         this.activeSessions.set(sessionId, user);
+        this.sessionTimestamps.set(sessionId, Date.now());
 
         return user;
     }
 
     async logout(sessionId: string): Promise<void> {
         const user = this.activeSessions.get(sessionId);
-        
-        if (user?.wallet) {
-            await user.wallet.close();
-        }
-        
+
         this.activeSessions.delete(sessionId);
+        this.sessionTimestamps.delete(sessionId);
+
+        if (user?.wallet) {
+            try {
+                await user.wallet.close();
+            } catch (error) {
+                console.error("Error closing wallet during logout:", error);
+            }
+        }
     }
 
     getUser(sessionId: string): User | undefined {
-        return this.activeSessions.get(sessionId);
+        const lastAccess = this.sessionTimestamps.get(sessionId);
+        if (lastAccess && Date.now() - lastAccess > 30 * 60 * 1000) {
+            this.logout(sessionId).catch(e => console.error("Error during lazy logout:", e));
+            return undefined;
+        }
+
+        const user = this.activeSessions.get(sessionId);
+        if (user) {
+            this.sessionTimestamps.set(sessionId, Date.now());
+        }
+        return user;
     }
 
     isLoggedIn(sessionId: string): boolean {
+        const lastAccess = this.sessionTimestamps.get(sessionId);
+        if (lastAccess && Date.now() - lastAccess > 30 * 60 * 1000) {
+            this.logout(sessionId).catch(e => console.error("Error during lazy logout:", e));
+            return false;
+        }
         return this.activeSessions.has(sessionId);
     }
 
@@ -162,7 +197,7 @@ export class UserAccountManager {
     }
 
     private isValidPassword(password: string): boolean {
-        // Minimum 8 characters, at least one uppercase, one lowercase, one number, and one special character
+
         const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/;
         return passwordRegex.test(password);
     }
