@@ -101,6 +101,11 @@ export class VerificationProof {
       console.log('Synchronizing Midnight network nonces...');
       await walletCtx.wallet.waitForSyncedState();
 
+      if (global.gc) {
+        console.log('Forcing V8 Garbage Collection to free RAM for WASM Prover...');
+        global.gc();
+      }
+
       console.log('Connecting to deployed contract...');
       const privateStateId = `epContractState_${requestIdBytes.toString('hex')}`;
       const deployedContract = await (findDeployedContract as any)(providers, {
