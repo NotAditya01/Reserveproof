@@ -50,7 +50,7 @@ class BackendWalletManagerImpl {
     await Rx.firstValueFrom(
       this.walletCtx.wallet.state().pipe(
         Rx.throttleTime(3000),
-        Rx.filter((s: any) => s.isSynced),
+        Rx.filter((s: any) => s.unshielded?.progress?.isStrictlyComplete?.() === true),
       ),
     );
 
