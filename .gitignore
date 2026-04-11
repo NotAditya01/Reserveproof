@@ -12,7 +12,6 @@ out/
 !.env.example
 
 # Midnight System
-midnight-level-db/
 
 # System Files
 .DS_Store
