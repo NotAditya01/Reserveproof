@@ -2,7 +2,6 @@ import express from 'express';
 import session from 'express-session';
 // @ts-ignore
 import pgSession from 'connect-pg-simple';
-import { Pool } from 'pg';
 import cors from 'cors';
 import fs from 'fs';
 
@@ -33,9 +32,7 @@ async function startServer() {
     }));
 
     // Configure session middleware
-    const sessionPool = new Pool({
-      connectionString: process.env.DATABASE_URL,
-    });
+    const sessionPool = dbService.getPool();
     const PgSession = pgSession(session);
 
     app.use(session({

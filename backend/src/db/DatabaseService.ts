@@ -22,6 +22,10 @@ export class DatabaseService {
         }
     }
 
+    getPool(): Pool {
+        return this.pool;
+    }
+
     async initDb() {
         const createUserTableQuery = `
             CREATE TABLE IF NOT EXISTS UserAccount (
