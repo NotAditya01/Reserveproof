@@ -32,6 +32,17 @@ class BackendWalletManagerImpl {
   }
 
   private async connect() {
+    if (this.walletCtx) {
+      console.log('Closing old wallet connection...');
+      try {
+        if (this.walletCtx.wallet.close) {
+          await this.walletCtx.wallet.close();
+        }
+      } catch (e) {
+        console.error('Error closing old wallet:', e);
+      }
+    }
+    
     this.walletCtx = await createMidnightWallet(this.seed);
     console.log('Syncing with Midnight Network...');
     
