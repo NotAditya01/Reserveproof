@@ -1,5 +1,7 @@
 import express from 'express';
 import session from 'express-session';
+import pgSession from 'connect-pg-simple';
+import { Pool } from 'pg';
 import cors from 'cors';
 import fs from 'fs';
 
@@ -30,7 +32,17 @@ async function startServer() {
     }));
 
     // Configure session middleware
+    const sessionPool = new Pool({
+      connectionString: process.env.DATABASE_URL,
+    });
+    const PgSession = pgSession(session);
+
     app.use(session({
+      store: new PgSession({
+        pool: sessionPool,
+        tableName: 'session',
+        createTableIfMissing: true,
+      }),
       secret: process.env.SESSION_SECRET || 'your-secret-key-change-in-production',
       resave: false,
       saveUninitialized: false,
