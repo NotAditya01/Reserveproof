@@ -194,6 +194,11 @@ export async function createProviders(
     walletCtx.wallet.state().pipe(
       Rx.throttleTime(3000),
       Rx.filter((s: any) => s.unshielded?.progress?.isStrictlyComplete?.() === true),
+      Rx.timeout(60000),
+      Rx.catchError((err) => {
+        console.warn('Initial wallet sync reached 60s timeout, proceeding with current state...', err.message);
+        return walletCtx.wallet.state().pipe(Rx.first());
+      })
     ),
   );
 
