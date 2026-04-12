@@ -13,9 +13,35 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 const dbService = new DatabaseService();
 let isDatabaseReady = false;
+let databaseInitAttempts = 0;
+let lastDatabaseInitError: string | null = null;
+
+const DATABASE_RETRY_DELAY_MS = Number(process.env.DATABASE_RETRY_DELAY_MS || 15000);
+
+async function initializeDatabaseWithRetry() {
+  databaseInitAttempts += 1;
+  console.log(`Attempting to initialize database in background (attempt ${databaseInitAttempts})...`);
+
+  try {
+    await dbService.initDb();
+    isDatabaseReady = true;
+    lastDatabaseInitError = null;
+    console.log('Database connection successful.');
+  } catch (error) {
+    isDatabaseReady = false;
+    lastDatabaseInitError = error instanceof Error ? error.message : String(error);
+    console.error('Database initialization failed.', error);
+    console.log(`Retrying database initialization in ${DATABASE_RETRY_DELAY_MS / 1000}s...`);
+    setTimeout(() => {
+      void initializeDatabaseWithRetry();
+    }, DATABASE_RETRY_DELAY_MS);
+  }
+}
 
 async function startServer() {
   try {
+    app.set('trust proxy', 1);
+
     // Global Middleware Setup
     app.use(express.json()); // Parses JSON bodies
 
@@ -31,7 +57,7 @@ async function startServer() {
       resave: false,
       saveUninitialized: false,
       cookie: {
-        secure: false, // Set to true in production with HTTPS
+        secure: 'auto',
         httpOnly: true,
         maxAge: 1000 * 60 * 30 // 30 mins
       }
@@ -46,6 +72,8 @@ async function startServer() {
       return res.status(200).json({
         ok: true,
         databaseReady: isDatabaseReady,
+        databaseInitAttempts,
+        lastDatabaseInitError,
         walletReady: BackendWalletManager.isReady,
         dustReady: BackendWalletManager.isDustReady,
       });
@@ -55,7 +83,7 @@ async function startServer() {
       if (!isDatabaseReady) {
         return res.status(503).json({
           error: 'Backend is still initializing the database',
-          retryAfterSeconds: 10,
+          retryAfterSeconds: Math.max(1, Math.round(DATABASE_RETRY_DELAY_MS / 1000)),
         });
       }
       next();
@@ -65,30 +93,19 @@ async function startServer() {
     app.use('/api/auth', authRouter);
     app.use('/api/reserve', reserveRouter);
 
-    // Server Start (Immediately, so Azure health check passes)
+    // Server Start first so Azure health checks can pass quickly
     const server = app.listen(PORT, () => {
       console.log(`Server is running at http://localhost:${PORT}`);
     });
 
-    console.log('Attempting to initialize database in background...');
-    dbService.initDb()
-      .then(() => {
-        isDatabaseReady = true;
-        console.log('Database connection successful.');
-      })
-      .catch((error) => {
-        console.error('FATAL ERROR: Database initialization failed.', error);
-      });
+    void initializeDatabaseWithRetry();
 
-    // Initialize Persistent Backend Wallet (Now runs in background)
+    // Initialize backend wallet in background
     const backendSeed = process.env.BACKEND_WALLET_SEED;
     if (!backendSeed) {
       console.error('FATAL ERROR: BACKEND_WALLET_SEED is missing from environment.');
-      // We don't exit(1) here because we want the server to stay up for debugging,
-      // but we log the error clearly.
     } else {
-      // Start initialization in background — do NOT await
-      BackendWalletManager.initialize(backendSeed).catch(err => {
+      BackendWalletManager.initialize(backendSeed).catch((err) => {
         console.error('Wallet background initialization failed:', err);
       });
     }
