@@ -1,4 +1,5 @@
 import * as Rx from 'rxjs';
+import fs from 'fs';
 import { createMidnightWallet, createProviders } from './midnight-utils.js';
 
 class BackendWalletManagerImpl {
@@ -56,8 +57,13 @@ class BackendWalletManagerImpl {
         Rx.tap((s: any) => {
            const unshieldedS = s.unshielded?.progress?.isStrictlyComplete?.() === true;
            const dustS = s.dust?.progress?.isStrictlyComplete?.() === true;
+           
+           // Extract block height for better monitoring
+           const currentHeight = s.unshielded?.progress?.syncHeight ?? 'unknown';
+           const totalHeight = s.unshielded?.progress?.tipHeight ?? 'unknown';
+           
            this.syncProgress = unshieldedS && dustS ? '100%' : (unshieldedS ? '50%' : '10%');
-           console.log(`Sync Progress — Unshielded: ${unshieldedS}, Dust: ${dustS}`);
+           console.log(`[Wallet Sync] Height: ${currentHeight}/${totalHeight} | Unshielded Ready: ${unshieldedS} | Dust Ready: ${dustS}`);
         }),
         Rx.filter((s: any) => {
           const isUnshieldedSynced = s.unshielded?.progress?.isStrictlyComplete?.() === true;

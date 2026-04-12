@@ -4,6 +4,7 @@ import * as path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { WebSocket } from 'ws';
 import * as Rx from 'rxjs';
+import fs from 'fs';
 
 // Midnight SDK imports
 import { httpClientProofProvider } from '@midnight-ntwrk/midnight-js-http-client-proof-provider';
@@ -91,8 +92,21 @@ export const zkConfigPath = path.resolve(__dirname, '../managed/ep-contract');
 // ─── Contract Loading 
 
 export async function loadContractModule() {
-  const contractPath = path.resolve(__dirname, '..', 'managed', 'ep-contract', 'contract', 'index.js');
-  return await import(pathToFileURL(contractPath).href);
+  const possiblePaths = [
+    path.resolve(__dirname, '..', 'managed', 'ep-contract', 'contract', 'index.cjs'),
+    path.resolve(__dirname, '..', 'managed', 'ep-contract', 'contract', 'index.js'),
+    path.resolve(__dirname, 'managed', 'ep-contract', 'contract', 'index.cjs'),
+    path.resolve(__dirname, 'managed', 'ep-contract', 'contract', 'index.js')
+  ];
+
+  for (const p of possiblePaths) {
+    if (fs.existsSync(p)) {
+      console.log(`Loading contract module from: ${p}`);
+      return await import(pathToFileURL(p).href);
+    }
+  }
+  
+  throw new Error(`Contract module not found in any of the expected locations. Searched: ${possiblePaths.join(', ')}`);
 }
 
 // ─── Wallet Functions 
@@ -122,6 +136,16 @@ export async function createMidnightWallet(seed: string) {
   const shieldedSecretKeys = ledger.ZswapSecretKeys.fromSeed(keys[Roles.Zswap]);
   const dustSecretKey = ledger.DustSecretKey.fromSeed(keys[Roles.Dust]);
   const unshieldedKeystore = createKeystore(keys[Roles.NightExternal], getNetworkId());
+
+  // Azure Persistence Path
+  const storagePath = '/home/site/wwwroot/midnight-data';
+  if (!fs.existsSync(storagePath)) {
+    try {
+      fs.mkdirSync(storagePath, { recursive: true });
+    } catch (e) {
+      console.warn('Could not create persistent storage path, falling back to local dir', e);
+    }
+  }
 
   const walletConfig = {
     ...buildShieldedConfig(CONFIG),
