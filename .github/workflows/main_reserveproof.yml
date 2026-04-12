@@ -1,7 +1,7 @@
 # Docs for the Azure Web Apps Deploy action: https://github.com/Azure/webapps-deploy
 # More GitHub Actions for Azure: https://github.com/Azure/actions
 
-name: Build and deploy Node.js app to Azure Web App - Reserveproof
+name: Build and deploy Node.js app to Azure Web App - reserveproof
 
 on:
   push:
@@ -21,7 +21,7 @@ jobs:
       - name: Set up Node.js version
         uses: actions/setup-node@v3
         with:
-          node-version: '24.x'
+          node-version: '22.x'
 
       - name: npm install, build, and test
         run: |
@@ -51,15 +51,15 @@ jobs:
       - name: Login to Azure
         uses: azure/login@v2
         with:
-          client-id: ${{ secrets.AZUREAPPSERVICE_CLIENTID_2648EBAA183C43419E3587D9FF8DFE06 }}
-          tenant-id: ${{ secrets.AZUREAPPSERVICE_TENANTID_CA2C162F10DF4CAFA20D165A005ECAB2 }}
-          subscription-id: ${{ secrets.AZUREAPPSERVICE_SUBSCRIPTIONID_A7673825A8F54A53A6BC758ABF51667E }}
+          client-id: ${{ secrets.AZUREAPPSERVICE_CLIENTID_F9D991D742E04BF99222D2AA3028E1BE }}
+          tenant-id: ${{ secrets.AZUREAPPSERVICE_TENANTID_6C8B6DCC049A4DD4BDB9888E90861643 }}
+          subscription-id: ${{ secrets.AZUREAPPSERVICE_SUBSCRIPTIONID_C2FEA31E7B5548209CD754B148669CD9 }}
 
       - name: 'Deploy to Azure Web App'
         id: deploy-to-webapp
         uses: azure/webapps-deploy@v3
         with:
-          app-name: 'Reserveproof'
+          app-name: 'reserveproof'
           slot-name: 'Production'
           package: .
           
