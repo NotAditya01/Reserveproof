@@ -186,6 +186,16 @@ function evaluateAttribute(
 }
 
 reserveRouter.post('/attest', async (req: Request, res: Response) => {
+  // Guard: Ensure wallet is synced
+  const { BackendWalletManager } = await import('../services/BackendWalletManager.js');
+  if (!BackendWalletManager.isReady) {
+    return res.status(503).json({ 
+      error: 'Backend is still synchronizing with Midnight network', 
+      progress: BackendWalletManager.syncProgress,
+      retryAfterSeconds: 30
+    });
+  }
+
   const {
     walletAddress,
     protocolName,

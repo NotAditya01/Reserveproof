@@ -7,6 +7,8 @@ class BackendWalletManagerImpl {
   private seed: string = '';
   private stateSubscription: Rx.Subscription | null = null;
   private isReconnecting: boolean = false;
+  public isReady: boolean = false;
+  public syncProgress: string = '0%';
 
   get WalletCtx() {
     if (!this.walletCtx) throw new Error('Backend wallet not initialized.');
@@ -20,14 +22,14 @@ class BackendWalletManagerImpl {
 
   async initialize(seed: string) {
     this.seed = seed;
-    console.log('Initializing backend wallet...');
+    console.log('Initializing backend wallet in background...');
     try {
       await this.connect();
-      console.log('Backend wallet ready. Server starting...');
+      console.log('Backend wallet background sync initiated.');
     } catch (error) {
-      console.error('FATAL ERROR: Failed to initialize backend wallet.');
+      console.error('ERROR: Failed to initiate backend wallet background sync.');
       console.error(error);
-      process.exit(1);
+      // We do not exit(1) here to allow the server to stay alive for Azure health checks
     }
   }
 
@@ -51,17 +53,23 @@ class BackendWalletManagerImpl {
     await Rx.firstValueFrom(
       this.walletCtx.wallet.state().pipe(
         Rx.throttleTime(3000),
+        Rx.tap((s: any) => {
+           const unshieldedS = s.unshielded?.progress?.isStrictlyComplete?.() === true;
+           const dustS = s.dust?.progress?.isStrictlyComplete?.() === true;
+           this.syncProgress = unshieldedS && dustS ? '100%' : (unshieldedS ? '50%' : '10%');
+           console.log(`Sync Progress — Unshielded: ${unshieldedS}, Dust: ${dustS}`);
+        }),
         Rx.filter((s: any) => {
           const isUnshieldedSynced = s.unshielded?.progress?.isStrictlyComplete?.() === true;
           const isDustSynced = s.dust?.progress?.isStrictlyComplete?.() === true;
-          if (isUnshieldedSynced && isDustSynced) return true;
-          console.log(`Sync Progress — Unshielded: ${isUnshieldedSynced}, Dust: ${isDustSynced}`);
-          return false;
+          return isUnshieldedSynced && isDustSynced;
         }),
       ),
     );
 
     this.providers = await createProviders(this.walletCtx);
+    this.isReady = true;
+    console.log('Backend wallet fully synced and providers ready.');
 
     // Watch for disconnection
     if (this.stateSubscription) this.stateSubscription.unsubscribe();

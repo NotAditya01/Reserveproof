@@ -50,18 +50,23 @@ async function startServer() {
     app.use('/api/auth', authRouter);
     app.use('/api/reserve', reserveRouter);
 
-    // Initialize Persistent Backend Wallet (Waits for full sync)
-    const backendSeed = process.env.BACKEND_WALLET_SEED;
-    if (!backendSeed) {
-      console.error('FATAL ERROR: BACKEND_WALLET_SEED is missing from environment.');
-      process.exit(1);
-    }
-    await BackendWalletManager.initialize(backendSeed);
-
-    // Server Start (Only runs if DB & Wallet connection succeeded)
+    // Server Start (Immediately, so Azure health check passes)
     const server = app.listen(PORT, () => {
       console.log(`Server is running at http://localhost:${PORT}`);
     });
+
+    // Initialize Persistent Backend Wallet (Now runs in background)
+    const backendSeed = process.env.BACKEND_WALLET_SEED;
+    if (!backendSeed) {
+      console.error('FATAL ERROR: BACKEND_WALLET_SEED is missing from environment.');
+      // We don't exit(1) here because we want the server to stay up for debugging,
+      // but we log the error clearly.
+    } else {
+      // Start initialization in background — do NOT await
+      BackendWalletManager.initialize(backendSeed).catch(err => {
+        console.error('Wallet background initialization failed:', err);
+      });
+    }
 
     process.on('SIGTERM', async () => {
       console.log('SIGTERM received, closing server gracefully...');
