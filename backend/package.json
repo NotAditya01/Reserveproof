@@ -5,7 +5,7 @@
   "main": "dist/App.js",
   "scripts": {
     "build": "tsc && cp -r ../contracts/managed ./dist/managed",
-    "start": "node --expose-gc -r dotenv/config dist/App.js dotenv_config_path=../.env",
+    "start": "node --expose-gc dist/App.js",
     "dev": "tsc --pretty false && node --expose-gc -r dotenv/config dist/App.js dotenv_config_path=../.env",
     "deploy": "tsx src/deploy.ts",
     "test": "echo 'No tests yet' && exit 0"
