@@ -300,7 +300,11 @@ export default function HomePage() {
               {feedCards.map((row, index) => {
                 const badge = homepageStatusBadge(row.solvencyStatus);
                 return (
-                  <article key={`${row.proofHash}-${index}`} className="home-feed-card">
+                  <Link 
+                    key={`${row.proofHash}-${index}`} 
+                    to={`/verify?hash=${row.proofHash}`}
+                    className="home-feed-card block no-underline"
+                  >
                     <div className="flex items-center gap-2">
                       <span className={`h-[7px] w-[7px] rounded-full ${badge.dotClass}`} />
                       <p className="text-[13px] font-semibold text-[var(--text-primary)]">{row.protocolName}</p>
@@ -311,7 +315,7 @@ export default function HomePage() {
                     </span>
                     <p className="mt-2 font-mono text-[10px] text-[var(--accent)]">{row.proofHash.slice(0, 18)}...</p>
                     <p className="mt-1 text-[11px] text-[var(--text-muted)]">{timeAgo(row.createdAt)}</p>
-                  </article>
+                  </Link>
                 );
               })}
             </div>
