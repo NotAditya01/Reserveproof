@@ -24,6 +24,8 @@ export interface ProofGenerationResult {
   error?: string;
 }
 
+const PROOF_GENERATION_TIMEOUT_MS = Number(process.env.PROOF_GENERATION_TIMEOUT_MS ?? '180000');
+
 export class VerificationProof {
   async generateVerificationProof(params: ProofGenerationParams): Promise<ProofGenerationResult> {
     const backendSeed = process.env.BACKEND_WALLET_SEED;
@@ -53,17 +55,6 @@ export class VerificationProof {
       const reserveRatio = params.reserveRatio ?? params.netPay ?? 300;
       const tierThreshold = params.tierThreshold ?? params.amountToProve ?? 300;
       const thresholdBigInt = BigInt(Math.round(tierThreshold));
-
-      // 1-2. Fetch persisted backend wallet connection
-      if (!BackendWalletManager.isDustReady) {
-        return {
-          success: false,
-          requestId: '',
-          salt: '',
-          txHash: '',
-          error: 'DUST not ready yet. Fund the backend wallet and wait for DUST generation.',
-        };
-      }
 
       const walletCtx = BackendWalletManager.WalletCtx;
       const providers = BackendWalletManager.Providers;
@@ -122,10 +113,17 @@ export class VerificationProof {
 
       // 6. Call the proveReserveStatus circuit — this creates and submits a TX
       console.log(`Generating ZK proof with thresholdBigInt: ${thresholdBigInt}, reserveScore: ${reserveScore}`);
-      const result = await deployedContract.callTx.proveReserveStatus(
-        thresholdBigInt,
-        requestId,
-      );
+      const result = await Promise.race([
+        deployedContract.callTx.proveReserveStatus(
+          thresholdBigInt,
+          requestId,
+        ),
+        new Promise<never>((_, reject) => {
+          setTimeout(() => {
+            reject(new Error(`Proof generation timed out after ${PROOF_GENERATION_TIMEOUT_MS}ms`));
+          }, PROOF_GENERATION_TIMEOUT_MS);
+        }),
+      ]);
 
       // 7. Extract TX hash from the result
       const txHash = (result as any)?.txHash

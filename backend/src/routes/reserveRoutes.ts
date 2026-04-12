@@ -195,13 +195,6 @@ reserveRouter.post('/attest', async (req: Request, res: Response) => {
       retryAfterSeconds: 30
     });
   }
-  if (!BackendWalletManager.isDustReady) {
-    return res.status(503).json({
-      error: 'Backend is waiting for DUST generation',
-      progress: BackendWalletManager.syncProgress,
-      retryAfterSeconds: 30,
-    });
-  }
 
   const {
     walletAddress,
