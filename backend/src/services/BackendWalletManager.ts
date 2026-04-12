@@ -46,11 +46,18 @@ class BackendWalletManagerImpl {
     this.walletCtx = await createMidnightWallet(this.seed);
     console.log('Syncing with Midnight Network...');
     
-    // Wait for initial sync
+    // Wait for initial sync (Unshielded + Dust)
+    console.log('Performing deep sync with Midnight indexer...');
     await Rx.firstValueFrom(
       this.walletCtx.wallet.state().pipe(
         Rx.throttleTime(3000),
-        Rx.filter((s: any) => s.unshielded?.progress?.isStrictlyComplete?.() === true),
+        Rx.filter((s: any) => {
+          const isUnshieldedSynced = s.unshielded?.progress?.isStrictlyComplete?.() === true;
+          const isDustSynced = s.dust?.progress?.isStrictlyComplete?.() === true;
+          if (isUnshieldedSynced && isDustSynced) return true;
+          console.log(`Sync Progress — Unshielded: ${isUnshieldedSynced}, Dust: ${isDustSynced}`);
+          return false;
+        }),
       ),
     );
 

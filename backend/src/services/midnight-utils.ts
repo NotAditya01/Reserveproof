@@ -18,7 +18,7 @@ import { HDWallet, Roles } from '@midnight-ntwrk/wallet-sdk-hd';
 import { ShieldedWallet } from '@midnight-ntwrk/wallet-sdk-shielded';
 import {
   createKeystore,
-  NoOpTransactionHistoryStorage,
+  InMemoryTransactionHistoryStorage,
   PublicKey,
   UnshieldedWallet,
 } from '@midnight-ntwrk/wallet-sdk-unshielded-wallet';
@@ -67,7 +67,7 @@ const buildUnshieldedConfig = (cfg: typeof CONFIG) => ({
     indexerHttpUrl: cfg.indexer,
     indexerWsUrl: cfg.indexerWS,
   },
-  txHistoryStorage: new NoOpTransactionHistoryStorage(),
+  txHistoryStorage: new InMemoryTransactionHistoryStorage(),
 });
 
 const buildDustConfig = (cfg: typeof CONFIG) => ({

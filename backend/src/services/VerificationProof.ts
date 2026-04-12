@@ -98,23 +98,6 @@ export class VerificationProof {
       const reserveScore = BigInt(Math.round(reserveRatio));
 
       // 5. Connect to the deployed contract
-      console.log('Synchronizing Midnight network nonces...');
-      try {
-        const syncPromise = walletCtx.wallet.waitForSyncedState();
-        const timeoutPromise = new Promise((_, reject) => 
-          setTimeout(() => reject(new Error('Sync Timeout')), 30000)
-        );
-        await Promise.race([syncPromise, timeoutPromise]);
-        console.log('Wallet synchronization complete.');
-      } catch (e) {
-        console.warn('Wallet sync timed out or failed, proceeding anyway for proof generation...', e instanceof Error ? e.message : String(e));
-      }
-
-      if (global.gc) {
-        console.log('Forcing V8 Garbage Collection to free RAM for WASM Prover...');
-        global.gc();
-      }
-
       console.log('Connecting to deployed contract...');
       const privateStateId = `epContractState_${requestIdBytes.toString('hex')}`;
       const deployedContract = await (findDeployedContract as any)(providers, {
