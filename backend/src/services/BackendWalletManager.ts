@@ -156,7 +156,7 @@ class BackendWalletManagerImpl {
   private async ensureDustReady() {
     const state$ = this.walletCtx.wallet.state().pipe(Rx.throttleTime(5000));
 
-    const initialState = await Rx.firstValueFrom(state$.pipe(Rx.first()));
+    const initialState: any = await Rx.firstValueFrom(state$.pipe(Rx.first()));
     const initialDustBalance = initialState.dust?.walletBalance?.(new Date());
     if (typeof initialDustBalance === 'bigint' && initialDustBalance > 0n) {
       this.isDustReady = true;
