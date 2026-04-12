@@ -55,6 +55,16 @@ export class VerificationProof {
       const thresholdBigInt = BigInt(Math.round(tierThreshold));
 
       // 1-2. Fetch persisted backend wallet connection
+      if (!BackendWalletManager.isDustReady) {
+        return {
+          success: false,
+          requestId: '',
+          salt: '',
+          txHash: '',
+          error: 'DUST not ready yet. Fund the backend wallet and wait for DUST generation.',
+        };
+      }
+
       const walletCtx = BackendWalletManager.WalletCtx;
       const providers = BackendWalletManager.Providers;
 

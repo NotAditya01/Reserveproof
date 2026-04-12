@@ -12,14 +12,10 @@ import { BackendWalletManager } from './services/BackendWalletManager.js';
 const app = express();
 const PORT = process.env.PORT || 3000;
 const dbService = new DatabaseService();
+let isDatabaseReady = false;
 
 async function startServer() {
   try {
-    // Initialize Database (Must complete before server starts)
-    console.log('Attempting to initialize database...');
-    await dbService.initDb();
-    console.log('Database connection successful.');
-
     // Global Middleware Setup
     app.use(express.json()); // Parses JSON bodies
 
@@ -46,6 +42,25 @@ async function startServer() {
       fs.mkdirSync('./uploads');
     }
 
+    app.get('/healthz', (_req, res) => {
+      return res.status(200).json({
+        ok: true,
+        databaseReady: isDatabaseReady,
+        walletReady: BackendWalletManager.isReady,
+        dustReady: BackendWalletManager.isDustReady,
+      });
+    });
+
+    app.use('/api', (_req, res, next) => {
+      if (!isDatabaseReady) {
+        return res.status(503).json({
+          error: 'Backend is still initializing the database',
+          retryAfterSeconds: 10,
+        });
+      }
+      next();
+    });
+
     // Route Handlers
     app.use('/api/auth', authRouter);
     app.use('/api/reserve', reserveRouter);
@@ -54,6 +69,16 @@ async function startServer() {
     const server = app.listen(PORT, () => {
       console.log(`Server is running at http://localhost:${PORT}`);
     });
+
+    console.log('Attempting to initialize database in background...');
+    dbService.initDb()
+      .then(() => {
+        isDatabaseReady = true;
+        console.log('Database connection successful.');
+      })
+      .catch((error) => {
+        console.error('FATAL ERROR: Database initialization failed.', error);
+      });
 
     // Initialize Persistent Backend Wallet (Now runs in background)
     const backendSeed = process.env.BACKEND_WALLET_SEED;

@@ -2,6 +2,7 @@
 
 import * as path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
+import { Buffer } from 'node:buffer';
 import { WebSocket } from 'ws';
 import * as Rx from 'rxjs';
 import fs from 'fs';
@@ -92,32 +93,31 @@ export const zkConfigPath = path.resolve(__dirname, '../managed/ep-contract');
 // ─── Contract Loading 
 
 export async function loadContractModule() {
-  const possiblePaths = [
-    path.resolve(__dirname, '..', 'managed', 'ep-contract', 'contract', 'index.cjs'),
-    path.resolve(__dirname, '..', 'managed', 'ep-contract', 'contract', 'index.js'),
-    path.resolve(__dirname, 'managed', 'ep-contract', 'contract', 'index.cjs'),
-    path.resolve(__dirname, 'managed', 'ep-contract', 'contract', 'index.js')
-  ];
-
-  for (const p of possiblePaths) {
-    if (fs.existsSync(p)) {
-      console.log(`Loading contract module from: ${p}`);
-      return await import(pathToFileURL(p).href);
-    }
+  const contractPath = path.resolve(__dirname, '..', 'managed', 'ep-contract', 'contract', 'index.js');
+  if (!fs.existsSync(contractPath)) {
+    throw new Error(`Contract module not found at expected path: ${contractPath}`);
   }
-  
-  throw new Error(`Contract module not found in any of the expected locations. Searched: ${possiblePaths.join(', ')}`);
+  console.log(`Loading contract module from: ${contractPath}`);
+  return await import(pathToFileURL(contractPath).href);
 }
 
 // ─── Wallet Functions 
 
 export function deriveKeys(seed: string) {
-  const normalized = seed.trim().toLowerCase().replace(/\s+/g, ' ');
+  const trimmed = seed.trim();
+  const normalized = trimmed.toLowerCase().replace(/\s+/g, ' ');
   const words = normalized.split(' ');
-  if (words.length !== 24) {
-    throw new Error('BACKEND_WALLET_SEED must be a 24-word mnemonic phrase');
+
+  let seedBytes: Uint8Array;
+  if (words.length === 24) {
+    seedBytes = mnemonicToSeedSync(normalized);
+  } else if (/^[0-9a-fA-F]{64,128}$/.test(trimmed)) {
+    seedBytes = Buffer.from(trimmed, 'hex');
+  } else {
+    throw new Error('Wallet seed must be either a 24-word mnemonic phrase or a hex-encoded seed');
   }
-  const hdWallet = HDWallet.fromSeed(mnemonicToSeedSync(normalized));
+
+  const hdWallet = HDWallet.fromSeed(seedBytes);
   if (hdWallet.type !== 'seedOk') throw new Error('Invalid seed');
 
   const result = hdWallet.hdWallet
@@ -136,16 +136,6 @@ export async function createMidnightWallet(seed: string) {
   const shieldedSecretKeys = ledger.ZswapSecretKeys.fromSeed(keys[Roles.Zswap]);
   const dustSecretKey = ledger.DustSecretKey.fromSeed(keys[Roles.Dust]);
   const unshieldedKeystore = createKeystore(keys[Roles.NightExternal], getNetworkId());
-
-  // Azure Persistence Path
-  const storagePath = '/home/site/wwwroot/midnight-data';
-  if (!fs.existsSync(storagePath)) {
-    try {
-      fs.mkdirSync(storagePath, { recursive: true });
-    } catch (e) {
-      console.warn('Could not create persistent storage path, falling back to local dir', e);
-    }
-  }
 
   const walletConfig = {
     ...buildShieldedConfig(CONFIG),

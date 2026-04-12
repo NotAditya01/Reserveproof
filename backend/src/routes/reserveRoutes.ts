@@ -195,6 +195,13 @@ reserveRouter.post('/attest', async (req: Request, res: Response) => {
       retryAfterSeconds: 30
     });
   }
+  if (!BackendWalletManager.isDustReady) {
+    return res.status(503).json({
+      error: 'Backend is waiting for DUST generation',
+      progress: BackendWalletManager.syncProgress,
+      retryAfterSeconds: 30,
+    });
+  }
 
   const {
     walletAddress,
@@ -309,9 +316,13 @@ reserveRouter.post('/attest', async (req: Request, res: Response) => {
       reserveRatio: proofScore,
       tierThreshold: threshold,
     });
-    
+
     const durationSec = ((Date.now() - startTime) / 1000).toFixed(2);
-    console.log(`[API] ZK proof generated successfully in ${durationSec}s.`);
+    if (proofResult.success) {
+      console.log(`[API] ZK proof generated successfully in ${durationSec}s.`);
+    } else {
+      console.warn(`[API] ZK proof generation failed after ${durationSec}s: ${proofResult.error}`);
+    }
   } catch (runtimeError) {
     const message = runtimeError instanceof Error ? runtimeError.message : String(runtimeError);
     console.error(`[API] ZK proof generation/submission error: ${message}`);

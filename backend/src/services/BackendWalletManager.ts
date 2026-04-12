@@ -1,5 +1,4 @@
 import * as Rx from 'rxjs';
-import fs from 'fs';
 import { createMidnightWallet, createProviders } from './midnight-utils.js';
 
 class BackendWalletManagerImpl {
@@ -7,8 +6,10 @@ class BackendWalletManagerImpl {
   private providers: any = null;
   private seed: string = '';
   private stateSubscription: Rx.Subscription | null = null;
+  private syncSubscription: Rx.Subscription | null = null;
   private isReconnecting: boolean = false;
   public isReady: boolean = false;
+  public isDustReady: boolean = false;
   public syncProgress: string = '0%';
 
   get WalletCtx() {
@@ -48,34 +49,53 @@ class BackendWalletManagerImpl {
     
     this.walletCtx = await createMidnightWallet(this.seed);
     console.log('Syncing with Midnight Network...');
-    
-    // Wait for initial sync (Unshielded + Dust)
     console.log('Performing deep sync with Midnight indexer...');
+
+    const state$ = this.walletCtx.wallet.state().pipe(Rx.throttleTime(3000));
+
+    if (this.syncSubscription) this.syncSubscription.unsubscribe();
+    this.syncSubscription = state$.subscribe({
+      next: (s: any) => {
+        const unshieldedS = s.unshielded?.progress?.isStrictlyComplete?.() === true;
+        const dustProgressReady = s.dust?.progress?.isStrictlyComplete?.() === true;
+        const dustBalance = s.dust?.walletBalance?.(new Date());
+        const dustBalanceReady = typeof dustBalance === 'bigint' ? dustBalance > 0n : false;
+        const dustS = dustProgressReady || dustBalanceReady;
+
+        const currentHeight = s.unshielded?.progress?.syncHeight ?? 'unknown';
+        const totalHeight = s.unshielded?.progress?.tipHeight ?? 'unknown';
+
+        this.isDustReady = dustS;
+        this.syncProgress = dustS
+          ? '100% (ready)'
+          : unshieldedS
+            ? '60% (DUST pending)'
+            : '10% (syncing)';
+
+        console.log(
+          `[Wallet Sync] Height: ${currentHeight}/${totalHeight} | Unshielded Ready: ${unshieldedS} | Dust Ready: ${dustS}`,
+        );
+      },
+      error: (err: any) => {
+        console.error('Wallet sync monitor error:', err);
+      },
+    });
+
+    // Wait for unshielded sync (dust may be generated later)
     await Rx.firstValueFrom(
-      this.walletCtx.wallet.state().pipe(
-        Rx.throttleTime(3000),
-        Rx.tap((s: any) => {
-           const unshieldedS = s.unshielded?.progress?.isStrictlyComplete?.() === true;
-           const dustS = s.dust?.progress?.isStrictlyComplete?.() === true;
-           
-           // Extract block height for better monitoring
-           const currentHeight = s.unshielded?.progress?.syncHeight ?? 'unknown';
-           const totalHeight = s.unshielded?.progress?.tipHeight ?? 'unknown';
-           
-           this.syncProgress = unshieldedS && dustS ? '100%' : (unshieldedS ? '50%' : '10%');
-           console.log(`[Wallet Sync] Height: ${currentHeight}/${totalHeight} | Unshielded Ready: ${unshieldedS} | Dust Ready: ${dustS}`);
-        }),
-        Rx.filter((s: any) => {
-          const isUnshieldedSynced = s.unshielded?.progress?.isStrictlyComplete?.() === true;
-          const isDustSynced = s.dust?.progress?.isStrictlyComplete?.() === true;
-          return isUnshieldedSynced && isDustSynced;
-        }),
+      state$.pipe(
+        Rx.filter((s: any) => s.unshielded?.progress?.isStrictlyComplete?.() === true),
       ),
     );
 
     this.providers = await createProviders(this.walletCtx);
     this.isReady = true;
-    console.log('Backend wallet fully synced and providers ready.');
+    console.log('Backend wallet unshielded sync complete and providers ready.');
+
+    // Ensure DUST setup in background (registration + wait)
+    this.ensureDustReady().catch((err) => {
+      console.warn('DUST setup failed:', err);
+    });
 
     // Watch for disconnection
     if (this.stateSubscription) this.stateSubscription.unsubscribe();
@@ -125,7 +145,61 @@ class BackendWalletManagerImpl {
     if (this.stateSubscription) {
       this.stateSubscription.unsubscribe();
     }
-    // Perform any SDK specific close hooks if they exist on walletCtx
+    if (this.syncSubscription) {
+      this.syncSubscription.unsubscribe();
+    }
+    if (this.walletCtx?.wallet?.close) {
+      await this.walletCtx.wallet.close();
+    }
+  }
+
+  private async ensureDustReady() {
+    const state$ = this.walletCtx.wallet.state().pipe(Rx.throttleTime(5000));
+
+    const initialState = await Rx.firstValueFrom(state$.pipe(Rx.first()));
+    const initialDustBalance = initialState.dust?.walletBalance?.(new Date());
+    if (typeof initialDustBalance === 'bigint' && initialDustBalance > 0n) {
+      this.isDustReady = true;
+      console.log('DUST tokens already available.');
+      return;
+    }
+
+    const nightUtxos = (initialState.unshielded?.availableCoins ?? []).filter(
+      (c: any) => !c.meta?.registeredForDustGeneration,
+    );
+
+    if (nightUtxos.length > 0) {
+      console.log('Registering for DUST generation...');
+      const recipe = await this.walletCtx.wallet.registerNightUtxosForDustGeneration(
+        nightUtxos,
+        this.walletCtx.unshieldedKeystore.getPublicKey(),
+        (payload: Uint8Array) => this.walletCtx.unshieldedKeystore.signData(payload),
+      );
+      await this.walletCtx.wallet.submitTransaction(
+        await this.walletCtx.wallet.finalizeRecipe(recipe),
+      );
+    } else {
+      console.warn('No unshielded coins available for DUST registration.');
+    }
+
+    console.log('Waiting for DUST tokens...');
+    const timeoutMs = Number(process.env.DUST_WAIT_TIMEOUT_MS ?? '120000');
+    try {
+      await Rx.firstValueFrom(
+        state$.pipe(
+          Rx.filter((s: any) => s.unshielded?.progress?.isStrictlyComplete?.() === true),
+          Rx.filter((s: any) => {
+            const bal = s.dust?.walletBalance?.(new Date());
+            return typeof bal === 'bigint' && bal > 0n;
+          }),
+          Rx.timeout(timeoutMs),
+        ),
+      );
+      this.isDustReady = true;
+      console.log('DUST tokens ready.');
+    } catch (err) {
+      console.warn(`DUST not ready after ${timeoutMs}ms.`, err);
+    }
   }
 }
 
