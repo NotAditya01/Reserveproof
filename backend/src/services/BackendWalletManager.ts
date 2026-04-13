@@ -48,20 +48,9 @@ class BackendWalletManagerImpl {
     this.walletCtx = await createMidnightWallet(this.seed);
     console.log('Syncing with Midnight Network...');
 
-    // Midnight SDK sync strategy:
-    // - waitForSyncedState() blocks until ALL sub-wallets (shielded, unshielded, dust) complete.
-    // - In practice, dust sync often NEVER completes because:
-    //   (a) Dust generation requires prior NIGHT UTXO registration (done in deploy.ts)
-    //   (b) The indexer may not return dust progress on cold starts
-    //   (c) The dust wallet depends on shielded state which itself can be slow
-    //
-    // Fix: Wait only for unshielded sync (always completes in ~10s), then give dust a
-    // short window to catch up. If dust doesn't sync, proceed anyway — the SDK can
-    // still discover tDUST UTXOs lazily when balanceUnboundTransaction is called,
-    // as long as registration was done previously (in deploy.ts).
     const syncStart = Date.now();
 
-    // Log progress every 10 seconds so we can see it's working
+    // Log progress every 10 seconds
     const progressSub = this.walletCtx.wallet.state().pipe(
       Rx.throttleTime(10000),
     ).subscribe((s: any) => {
@@ -73,7 +62,7 @@ class BackendWalletManagerImpl {
 
     try {
       // Phase 1: Wait for unshielded sync (critical — always works, usually <30s)
-      await Promise.race([
+      const syncedState: any = await Promise.race([
         Rx.firstValueFrom(
           this.walletCtx.wallet.state().pipe(
             Rx.throttleTime(3000),
@@ -87,8 +76,28 @@ class BackendWalletManagerImpl {
       const uElapsed = ((Date.now() - syncStart) / 1000).toFixed(1);
       console.log(`Unshielded wallet synced in ${uElapsed}s.`);
 
-      // Phase 2: Give dust wallet a shorter window to sync (nice-to-have, not blocking)
-      const DUST_TIMEOUT_MS = 90000; // 90 seconds
+      // Log balances for diagnostics
+      try {
+        const { unshieldedToken } = await import('@midnight-ntwrk/ledger-v8');
+        const nightBalance = syncedState.unshielded?.balances?.[unshieldedToken().raw] ?? 0n;
+        console.log(`NIGHT balance: ${nightBalance}`);
+        const dustBalance = syncedState.dust?.walletBalance?.(new Date()) ?? 'unknown';
+        console.log(`DUST balance: ${dustBalance}`);
+      } catch (balErr) {
+        console.warn('Could not read balances:', balErr);
+      }
+
+      // Phase 2: Ensure NIGHT UTXOs are registered for dust generation
+      // This mirrors deploy.ts behavior — needed on every cold start when
+      // new UTXOs exist that haven't been registered yet.
+      try {
+        await this.ensureDustRegistration(syncedState);
+      } catch (regErr) {
+        console.warn('Dust registration check failed (non-fatal):', regErr);
+      }
+
+      // Phase 3: Give dust wallet a window to sync after registration
+      const DUST_TIMEOUT_MS = 120000; // 2 minutes
       try {
         await Promise.race([
           Rx.firstValueFrom(
@@ -105,7 +114,8 @@ class BackendWalletManagerImpl {
         console.log(`Dust wallet synced in ${dElapsed}s.`);
       } catch (_dustErr) {
         const dElapsed = ((Date.now() - syncStart) / 1000).toFixed(1);
-        console.warn(`Dust sync did not complete within ${DUST_TIMEOUT_MS / 1000}s (total ${dElapsed}s). Proceeding — dust UTXOs will be discovered lazily.`);
+        console.warn(`Dust sync did not complete within ${DUST_TIMEOUT_MS / 1000}s (total ${dElapsed}s).`);
+        console.warn('Proof generation may hang if tDUST UTXOs are not discoverable.');
       }
     } catch (e) {
       const elapsed = ((Date.now() - syncStart) / 1000).toFixed(1);
@@ -159,6 +169,43 @@ class BackendWalletManagerImpl {
         }, 5000);
       }
     });
+  }
+
+  /**
+   * Check if NIGHT UTXOs are registered for dust generation.
+   * If not, register them — same logic as deploy.ts.
+   */
+  private async ensureDustRegistration(state: any): Promise<void> {
+    const dustBalance = state.dust?.walletBalance?.(new Date()) ?? 0n;
+    if (typeof dustBalance === 'bigint' && dustBalance > 0n) {
+      console.log(`Dust already available (balance: ${dustBalance}), skipping registration.`);
+      return;
+    }
+
+    console.log('No dust balance detected — checking for unregistered NIGHT UTXOs...');
+    const nightUtxos = (state.unshielded?.availableCoins ?? []).filter(
+      (c: any) => !c.meta?.registeredForDustGeneration,
+    );
+
+    if (nightUtxos.length === 0) {
+      console.log('All NIGHT UTXOs already registered for dust generation (or none available).');
+      return;
+    }
+
+    console.log(`Found ${nightUtxos.length} unregistered NIGHT UTXO(s). Registering for dust generation...`);
+    try {
+      const recipe = await this.walletCtx.wallet.registerNightUtxosForDustGeneration(
+        nightUtxos,
+        this.walletCtx.unshieldedKeystore.getPublicKey(),
+        (payload: Uint8Array) => this.walletCtx.unshieldedKeystore.signData(payload),
+      );
+      await this.walletCtx.wallet.submitTransaction(
+        await this.walletCtx.wallet.finalizeRecipe(recipe),
+      );
+      console.log('NIGHT UTXOs registered for dust generation successfully.');
+    } catch (regErr) {
+      console.error('Failed to register NIGHT UTXOs for dust generation:', regErr);
+    }
   }
 
   async shutdown() {

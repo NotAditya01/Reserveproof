@@ -207,6 +207,8 @@ export async function createProviders(
     getEncryptionPublicKey: () => (state as any).shielded.encryptionPublicKey.toHexString(),
 
     async balanceTx(tx: any, ttl?: Date) {
+      console.log('[balanceTx] Starting — calling balanceUnboundTransaction...');
+      const balanceStart = Date.now();
       const recipe = await walletCtx.wallet.balanceUnboundTransaction(
         tx,
         {
@@ -215,6 +217,7 @@ export async function createProviders(
         },
         { ttl: ttl ?? new Date(Date.now() + 30 * 60 * 1000) },
       );
+      console.log(`[balanceTx] balanceUnboundTransaction done in ${((Date.now() - balanceStart) / 1000).toFixed(1)}s`);
 
       const signFn = (payload: Uint8Array) =>
         walletCtx.unshieldedKeystore.signData(payload);
@@ -224,10 +227,16 @@ export async function createProviders(
         signTransactionIntents(recipe.balancingTransaction, signFn, 'pre-proof');
       }
 
-      return walletCtx.wallet.finalizeRecipe(recipe) as any;
+      console.log('[balanceTx] Finalizing recipe...');
+      const finalized = walletCtx.wallet.finalizeRecipe(recipe) as any;
+      console.log('[balanceTx] Done.');
+      return finalized;
     },
 
-    submitTx: (tx: any) => walletCtx.wallet.submitTransaction(tx) as any,
+    submitTx: (tx: any) => {
+      console.log('[submitTx] Submitting transaction to chain...');
+      return walletCtx.wallet.submitTransaction(tx) as any;
+    },
   };
 
   const zkConfigProvider = new NodeZkConfigProvider(zkConfigPath);

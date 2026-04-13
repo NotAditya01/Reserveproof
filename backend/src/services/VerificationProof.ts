@@ -24,6 +24,16 @@ export interface ProofGenerationResult {
   error?: string;
 }
 
+// Timeout wrapper that rejects after the given ms
+function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise<T> {
+  return Promise.race([
+    promise,
+    new Promise<never>((_, reject) =>
+      setTimeout(() => reject(new Error(`${label} timed out after ${(ms / 1000).toFixed(0)}s`)), ms)
+    ),
+  ]);
+}
+
 export class VerificationProof {
   async generateVerificationProof(params: ProofGenerationParams): Promise<ProofGenerationResult> {
     const backendSeed = process.env.BACKEND_WALLET_SEED;
@@ -54,11 +64,14 @@ export class VerificationProof {
       const tierThreshold = params.tierThreshold ?? params.amountToProve ?? 300;
       const thresholdBigInt = BigInt(Math.round(tierThreshold));
 
-      // 1-2. Fetch persisted backend wallet connection
+      // 1. Fetch persisted backend wallet connection
+      console.log('[Proof] Step 1: Fetching wallet context...');
       const walletCtx = BackendWalletManager.WalletCtx;
       const providers = BackendWalletManager.Providers;
+      console.log('[Proof] Step 1: Done.');
 
-      // 3. Load contract module and build compiled contract
+      // 2. Load contract module and build compiled contract
+      console.log('[Proof] Step 2: Loading contract module...');
       const ContractModule = await loadContractModule();
 
       const witnesses = {
@@ -90,8 +103,9 @@ export class VerificationProof {
         (CompiledContract.withWitnesses as any)(witnesses),
         (CompiledContract.withCompiledFileAssets as any)(zkConfigPath),
       );
+      console.log('[Proof] Step 2: Done.');
 
-      // 4. Generate request ID and salt
+      // 3. Generate request ID and salt
       const requestIdBytes = crypto.randomBytes(32);
       const requestId = new Uint8Array(requestIdBytes);
       const salt = new Uint8Array(crypto.randomBytes(32));
@@ -99,37 +113,56 @@ export class VerificationProof {
 
       // Free memory before heavy WASM proof generation
       if (global.gc) {
-        console.log('Forcing V8 Garbage Collection to free RAM for WASM Prover...');
+        console.log('[Proof] Forcing V8 GC before proof generation...');
         global.gc();
       }
 
-      // 6. Connect to the deployed contract
-      console.log('Connecting to deployed contract...');
+      // 4. Connect to the deployed contract
+      console.log('[Proof] Step 3: Connecting to deployed contract...');
       const privateStateId = `epContractState_${requestIdBytes.toString('hex')}`;
-      const deployedContract = await (findDeployedContract as any)(providers, {
-        compiledContract,
-        contractAddress,
-        privateStateId,
-        initialPrivateState: {
-          score: reserveScore,
-          salt,
-        },
-      });
+      const deployedContract = await withTimeout(
+        (findDeployedContract as any)(providers, {
+          compiledContract,
+          contractAddress,
+          privateStateId,
+          initialPrivateState: {
+            score: reserveScore,
+            salt,
+          },
+        }),
+        120000, // 2 min timeout for contract discovery
+        'findDeployedContract',
+      );
+      console.log('[Proof] Step 3: Done — contract found.');
 
-      // 7. Call the proveReserveStatus circuit — NO TIMEOUT, let it finish naturally
-      console.log(`Generating ZK proof with thresholdBigInt: ${thresholdBigInt}, reserveScore: ${reserveScore}`);
-      const result = await deployedContract.callTx.proveReserveStatus(
-        thresholdBigInt,
-        requestId,
+      // 5. Call the proveReserveStatus circuit — ZK proof + balance + submit
+      //    This is where the SDK: (a) generates unbound TX, (b) calls proof server,
+      //    (c) calls balanceTx (needs tDUST!), (d) submits to chain.
+      //    We add a 7-minute timeout because ZK proof generation is legitimately slow.
+      console.log(`[Proof] Step 4: Calling proveReserveStatus(threshold=${thresholdBigInt}, score=${reserveScore})...`);
+      console.log('[Proof] This involves: ZK proof generation → balanceTx (needs tDUST) → submit TX');
+      const proofStart = Date.now();
+
+      const PROOF_TIMEOUT_MS = 420000; // 7 minutes
+      const result = await withTimeout(
+        deployedContract.callTx.proveReserveStatus(
+          thresholdBigInt,
+          requestId,
+        ),
+        PROOF_TIMEOUT_MS,
+        'proveReserveStatus (ZK proof + balance + submit)',
       );
 
-      // 8. Extract TX hash from the result
+      const proofDuration = ((Date.now() - proofStart) / 1000).toFixed(1);
+      console.log(`[Proof] Step 4: Done in ${proofDuration}s.`);
+
+      // 6. Extract TX hash from the result
       const txHash = (result as any)?.txHash
         ?? (result as any)?.public?.txHash
         ?? (result as any)?.deployTxData?.public?.txHash
         ?? Buffer.from(requestId).toString('hex').slice(0, 64);
 
-      console.log(`Proof submitted on-chain. TX: ${txHash}`);
+      console.log(`[Proof] Proof submitted on-chain. TX: ${txHash}`);
 
       return {
         success: true,
@@ -139,7 +172,7 @@ export class VerificationProof {
       };
     } catch (error) {
       const errMsg = error instanceof Error ? error.message : String(error);
-      console.error('ZK proof generation/submission error:', errMsg);
+      console.error('[Proof] ZK proof generation/submission error:', errMsg);
       return {
         success: false,
         requestId: '',
