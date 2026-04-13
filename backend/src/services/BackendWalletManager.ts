@@ -48,12 +48,17 @@ class BackendWalletManagerImpl {
     this.walletCtx = await createMidnightWallet(this.seed);
     console.log('Syncing with Midnight Network...');
 
-    // The Midnight SDK REQUIRES a full sync to discover UTXOs (including tDUST).
-    // Without this, balanceUnboundTransaction will fail with 'Insufficient Funds'
-    // even if you have tDUST on-chain. This is confirmed by Midnight docs.
+    // Midnight SDK sync strategy:
+    // - waitForSyncedState() blocks until ALL sub-wallets (shielded, unshielded, dust) complete.
+    // - In practice, dust sync often NEVER completes because:
+    //   (a) Dust generation requires prior NIGHT UTXO registration (done in deploy.ts)
+    //   (b) The indexer may not return dust progress on cold starts
+    //   (c) The dust wallet depends on shielded state which itself can be slow
     //
-    // On a 4-core Azure P2V3, this takes ~2-5 minutes on a cold start.
-    // We give it up to 10 minutes. The server is already listening (Azure won't kill us).
+    // Fix: Wait only for unshielded sync (always completes in ~10s), then give dust a
+    // short window to catch up. If dust doesn't sync, proceed anyway — the SDK can
+    // still discover tDUST UTXOs lazily when balanceUnboundTransaction is called,
+    // as long as registration was done previously (in deploy.ts).
     const syncStart = Date.now();
 
     // Log progress every 10 seconds so we can see it's working
@@ -67,18 +72,45 @@ class BackendWalletManagerImpl {
     });
 
     try {
+      // Phase 1: Wait for unshielded sync (critical — always works, usually <30s)
       await Promise.race([
-        this.walletCtx.wallet.waitForSyncedState(),
+        Rx.firstValueFrom(
+          this.walletCtx.wallet.state().pipe(
+            Rx.throttleTime(3000),
+            Rx.filter((s: any) => s.unshielded?.progress?.isStrictlyComplete?.() === true),
+          ),
+        ),
         new Promise((_, reject) =>
-          setTimeout(() => reject(new Error('Wallet sync timed out after 10 minutes')), 600000)
+          setTimeout(() => reject(new Error('Unshielded sync timed out after 5 minutes')), 300000)
         ),
       ]);
-      const elapsed = ((Date.now() - syncStart) / 1000).toFixed(1);
-      console.log(`Full wallet sync complete in ${elapsed}s.`);
+      const uElapsed = ((Date.now() - syncStart) / 1000).toFixed(1);
+      console.log(`Unshielded wallet synced in ${uElapsed}s.`);
+
+      // Phase 2: Give dust wallet a shorter window to sync (nice-to-have, not blocking)
+      const DUST_TIMEOUT_MS = 90000; // 90 seconds
+      try {
+        await Promise.race([
+          Rx.firstValueFrom(
+            this.walletCtx.wallet.state().pipe(
+              Rx.throttleTime(5000),
+              Rx.filter((s: any) => s.dust?.progress?.isStrictlyComplete?.() === true),
+            ),
+          ),
+          new Promise((_, reject) =>
+            setTimeout(() => reject(new Error('Dust sync window expired')), DUST_TIMEOUT_MS)
+          ),
+        ]);
+        const dElapsed = ((Date.now() - syncStart) / 1000).toFixed(1);
+        console.log(`Dust wallet synced in ${dElapsed}s.`);
+      } catch (_dustErr) {
+        const dElapsed = ((Date.now() - syncStart) / 1000).toFixed(1);
+        console.warn(`Dust sync did not complete within ${DUST_TIMEOUT_MS / 1000}s (total ${dElapsed}s). Proceeding — dust UTXOs will be discovered lazily.`);
+      }
     } catch (e) {
       const elapsed = ((Date.now() - syncStart) / 1000).toFixed(1);
-      console.warn(`Wallet sync warning after ${elapsed}s: ${e instanceof Error ? e.message : String(e)}`);
-      console.warn('Will attempt to proceed — proof generation may fail if tDUST UTXOs were not found.');
+      console.error(`Critical: Unshielded sync failed after ${elapsed}s: ${e instanceof Error ? e.message : String(e)}`);
+      console.warn('Proceeding anyway — proof generation may fail.');
     } finally {
       progressSub.unsubscribe();
     }
