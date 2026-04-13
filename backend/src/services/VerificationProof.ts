@@ -64,7 +64,7 @@ export class VerificationProof {
       const witnesses = {
         getReserveWitness(context: any) {
           const privateState = context.privateState;
-          
+
           let score = privateState.score;
           if (typeof score !== 'bigint') {
             score = BigInt(score);
@@ -72,11 +72,11 @@ export class VerificationProof {
 
           let salt = privateState.salt;
           if (!(salt instanceof Uint8Array)) {
-             if (salt.type === 'Buffer' && Array.isArray(salt.data)) {
-                 salt = new Uint8Array(salt.data);
-             } else {
-                 salt = new Uint8Array(Object.values(salt));
-             }
+            if (salt.type === 'Buffer' && Array.isArray(salt.data)) {
+              salt = new Uint8Array(salt.data);
+            } else {
+              salt = new Uint8Array(Object.values(salt));
+            }
           }
 
           return [
@@ -97,15 +97,7 @@ export class VerificationProof {
       const salt = new Uint8Array(crypto.randomBytes(32));
       const reserveScore = BigInt(Math.round(reserveRatio));
 
-      // 5. Sync wallet state before proof (CRITICAL — original working logic)
-      console.log('Synchronizing Midnight network nonces...');
-      await walletCtx.wallet.waitForSyncedState();
-      console.log('Wallet synchronization complete.');
 
-      if (global.gc) {
-        console.log('Forcing V8 Garbage Collection to free RAM for WASM Prover...');
-        global.gc();
-      }
 
       // 6. Connect to the deployed contract
       console.log('Connecting to deployed contract...');
