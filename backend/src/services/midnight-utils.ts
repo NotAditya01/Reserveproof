@@ -235,7 +235,23 @@ export async function createProviders(
 
     submitTx: (tx: any) => {
       console.log('[submitTx] Submitting transaction to chain...');
-      return walletCtx.wallet.submitTransaction(tx) as any;
+      // Fire-and-forget: submitTransaction waits for on-chain CONFIRMATION
+      // (block inclusion), which can take forever on idle preprod chains.
+      // We submit and immediately return — the TX will be confirmed asynchronously.
+      const submitPromise = walletCtx.wallet.submitTransaction(tx);
+
+      // Log the outcome in the background without blocking
+      submitPromise
+        .then((result: any) => {
+          console.log('[submitTx] ✓ Transaction confirmed on-chain:', result);
+        })
+        .catch((err: any) => {
+          console.error('[submitTx] ✗ Transaction failed:', err);
+        });
+
+      // Return the tx itself as the "result" — the caller gets an immediate response
+      // The actual on-chain confirmation happens asynchronously
+      return tx;
     },
   };
 
