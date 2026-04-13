@@ -48,7 +48,9 @@ class BackendWalletManagerImpl {
     this.walletCtx = await createMidnightWallet(this.seed);
     console.log('Syncing with Midnight Network...');
 
-    // Wait for BOTH unshielded AND dust to sync
+    // Only wait for Unshielded sync — Dust isStrictlyComplete() never returns
+    // true on Azure because the scanner can't keep up with new blocks.
+    // The SDK handles Dust balancing internally during proof generation.
     await Rx.firstValueFrom(
       this.walletCtx.wallet.state().pipe(
         Rx.throttleTime(3000),
@@ -57,11 +59,7 @@ class BackendWalletManagerImpl {
           const dSync = s.dust?.progress?.isStrictlyComplete?.() === true;
           console.log(`[Wallet Sync] Unshielded: ${uSync} | Dust: ${dSync}`);
         }),
-        Rx.filter((s: any) => {
-          const u = s.unshielded?.progress?.isStrictlyComplete?.() === true;
-          const d = s.dust?.progress?.isStrictlyComplete?.() === true;
-          return u && d;
-        }),
+        Rx.filter((s: any) => s.unshielded?.progress?.isStrictlyComplete?.() === true),
       ),
     );
 
