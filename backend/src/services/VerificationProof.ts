@@ -120,7 +120,7 @@ export class VerificationProof {
       // 4. Connect to the deployed contract
       console.log('[Proof] Step 3: Connecting to deployed contract...');
       const privateStateId = `epContractState_${requestIdBytes.toString('hex')}`;
-      const deployedContract = await withTimeout(
+      const deployedContract: any = await withTimeout(
         (findDeployedContract as any)(providers, {
           compiledContract,
           contractAddress,
