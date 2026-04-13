@@ -193,10 +193,10 @@ export async function createProviders(
   const state = await Rx.firstValueFrom(
     walletCtx.wallet.state().pipe(
       Rx.throttleTime(3000),
-      Rx.filter((s: any) => s.unshielded?.progress?.isStrictlyComplete?.() === true),
-      Rx.timeout(60000),
+      Rx.filter((s: any) => s.isSynced === true),
+      Rx.timeout(120000),
       Rx.catchError((err) => {
-        console.warn('Initial wallet sync reached 60s timeout, proceeding with current state...', err.message);
+        console.warn('createProviders: isSynced not reached in 120s, using current state...', err.message);
         return walletCtx.wallet.state().pipe(Rx.first());
       })
     ),

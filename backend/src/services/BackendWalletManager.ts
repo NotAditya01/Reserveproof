@@ -26,7 +26,7 @@ class BackendWalletManagerImpl {
     try {
       await this.connect();
       this.isReady = true;
-      console.log('Backend wallet fully synced and ready.');
+      console.log('Backend wallet fully synced and ready for proof generation.');
     } catch (error) {
       console.error('ERROR: Backend wallet initialization failed.');
       console.error(error);
@@ -47,12 +47,9 @@ class BackendWalletManagerImpl {
 
     this.walletCtx = await createMidnightWallet(this.seed);
 
-    // Log wallet address so the user can verify balances on the explorer
     const walletAddress = this.walletCtx.unshieldedKeystore.getBech32Address();
     console.log(`Backend wallet address: ${walletAddress}`);
     console.log('Syncing with Midnight Network...');
-    console.log('Dust is a SHIELDED resource — the SDK must sync shielded chain history to find it.');
-    console.log('This can take 10-20 minutes on cold starts with no persistent state.');
 
     const syncStart = Date.now();
 
@@ -60,74 +57,61 @@ class BackendWalletManagerImpl {
     const progressSub = this.walletCtx.wallet.state().pipe(
       Rx.throttleTime(15000),
     ).subscribe((s: any) => {
+      const elapsed = ((Date.now() - syncStart) / 1000).toFixed(0);
       const uSync = s.unshielded?.progress?.isStrictlyComplete?.() === true;
       const sSync = s.shielded?.progress?.isStrictlyComplete?.() === true;
       const dSync = s.dust?.progress?.isStrictlyComplete?.() === true;
-      const elapsed = ((Date.now() - syncStart) / 1000).toFixed(0);
-      // Also try to read dust balance even if not fully synced
+      const isSynced = s.isSynced === true;
       let dustBal = 'n/a';
       try {
         const b = s.dust?.walletBalance?.(new Date());
         if (b !== undefined && b !== null) dustBal = String(b);
       } catch { /* ignore */ }
-      console.log(`[Sync ${elapsed}s] Unshielded: ${uSync} | Shielded: ${sSync} | Dust: ${dSync} | DustBal: ${dustBal}`);
+      console.log(`[Sync ${elapsed}s] isSynced: ${isSynced} | Unshielded: ${uSync} | Shielded: ${sSync} | Dust: ${dSync} | DustBal: ${dustBal}`);
     });
 
     try {
-      // Phase 1: Wait for unshielded sync (fast — always works in <10s)
-      await Promise.race([
+      // Use state.isSynced instead of isStrictlyComplete().
+      //
+      // CRITICAL FIX: The "idle chain" bug causes dust.progress.isStrictlyComplete()
+      // to NEVER return true on low-activity chains (like preprod).
+      // The dust wallet waits for new blocks to confirm it has reached the chain tip,
+      // but on idle chains, those blocks never come.
+      //
+      // state.isSynced is the SDK's own high-level flag that accounts for this.
+      // This is what deploy.ts uses and it WORKS.
+      const SYNC_TIMEOUT_MS = 600000; // 10 minutes
+      console.log(`Waiting for wallet isSynced (timeout: ${SYNC_TIMEOUT_MS / 60000} min)...`);
+
+      const syncedState: any = await Promise.race([
         Rx.firstValueFrom(
           this.walletCtx.wallet.state().pipe(
             Rx.throttleTime(3000),
-            Rx.filter((s: any) => s.unshielded?.progress?.isStrictlyComplete?.() === true),
+            Rx.filter((s: any) => s.isSynced === true),
           ),
         ),
         new Promise((_, reject) =>
-          setTimeout(() => reject(new Error('Unshielded sync timed out after 5 minutes')), 300000)
+          setTimeout(() => reject(new Error(`Wallet isSynced timed out after ${SYNC_TIMEOUT_MS / 60000} minutes`)), SYNC_TIMEOUT_MS)
         ),
       ]);
-      const uElapsed = ((Date.now() - syncStart) / 1000).toFixed(1);
-      console.log(`Unshielded wallet synced in ${uElapsed}s.`);
 
-      // Log NIGHT balance
+      const elapsed = ((Date.now() - syncStart) / 1000).toFixed(1);
+      console.log(`✓ Wallet fully synced (isSynced=true) in ${elapsed}s.`);
+
+      // Log balances
       try {
-        const freshState: any = await Rx.firstValueFrom(this.walletCtx.wallet.state());
-        const nightBalance = freshState.unshielded?.balances?.[ledger.unshieldedToken().raw] ?? 0n;
+        const nightBalance = syncedState.unshielded?.balances?.[ledger.unshieldedToken().raw] ?? 0n;
         console.log(`NIGHT balance: ${nightBalance}`);
+        const dustBalance = syncedState.dust?.walletBalance?.(new Date());
+        console.log(`DUST balance: ${dustBalance ?? 'unknown'}`);
       } catch (e) {
-        console.warn('Could not read NIGHT balance:', e);
-      }
-
-      // Phase 2: Wait for FULL sync (shielded + dust) using the SDK's own method.
-      // This is critical — without this, balanceUnboundTransaction WILL fail with
-      // "Insufficient Funds: could not balance dust" because dust UTXOs are shielded
-      // and require the full shielded chain history to be synced.
-      //
-      // On Azure with no persistent state, this takes 10-20 minutes.
-      // The server is already listening and serving /healthz, so Azure won't kill us.
-      const FULL_SYNC_TIMEOUT_MS = 900000; // 15 minutes
-      console.log(`Waiting up to ${FULL_SYNC_TIMEOUT_MS / 60000} minutes for full wallet sync (shielded + dust)...`);
-
-      try {
-        await Promise.race([
-          this.walletCtx.wallet.waitForSyncedState(),
-          new Promise((_, reject) =>
-            setTimeout(() => reject(new Error('Full wallet sync timed out')), FULL_SYNC_TIMEOUT_MS)
-          ),
-        ]);
-        const fullElapsed = ((Date.now() - syncStart) / 1000).toFixed(1);
-        console.log(`✓ Full wallet sync complete in ${fullElapsed}s! Shielded + Dust synced.`);
-      } catch (syncErr) {
-        const elapsed = ((Date.now() - syncStart) / 1000).toFixed(1);
-        console.error(`✗ Full wallet sync failed after ${elapsed}s: ${syncErr instanceof Error ? syncErr.message : String(syncErr)}`);
-        console.warn('⚠ Proof generation WILL FAIL with "Insufficient Funds: could not balance dust"');
-        console.warn(`→ The wallet has dust on-chain but the SDK cannot discover it without shielded sync.`);
-        console.warn(`→ Wallet address: ${walletAddress}`);
-        console.warn('→ Options: (1) Wait longer, (2) Use persistent storage, (3) Run locally');
+        console.warn('Could not read balances:', e);
       }
     } catch (e) {
       const elapsed = ((Date.now() - syncStart) / 1000).toFixed(1);
-      console.error(`Critical: Wallet sync failed after ${elapsed}s: ${e instanceof Error ? e.message : String(e)}`);
+      console.error(`✗ Wallet sync failed after ${elapsed}s: ${e instanceof Error ? e.message : String(e)}`);
+      console.warn('⚠ Proof generation will fail: dust UTXOs not discoverable.');
+      console.warn(`→ Wallet address: ${walletAddress}`);
     } finally {
       progressSub.unsubscribe();
     }
