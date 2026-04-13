@@ -190,8 +190,7 @@ reserveRouter.post('/attest', async (req: Request, res: Response) => {
   const { BackendWalletManager } = await import('../services/BackendWalletManager.js');
   if (!BackendWalletManager.isReady) {
     return res.status(503).json({ 
-      error: 'Backend is still synchronizing with Midnight network', 
-      progress: BackendWalletManager.syncProgress,
+      error: 'Backend wallet is still syncing with Midnight network. Please try again in a moment.',
       retryAfterSeconds: 30
     });
   }

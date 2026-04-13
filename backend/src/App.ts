@@ -75,7 +75,6 @@ async function startServer() {
         databaseInitAttempts,
         lastDatabaseInitError,
         walletReady: BackendWalletManager.isReady,
-        dustReady: BackendWalletManager.isDustReady,
       });
     });
 

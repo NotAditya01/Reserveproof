@@ -2,10 +2,8 @@
 
 import * as path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
-import { Buffer } from 'node:buffer';
 import { WebSocket } from 'ws';
 import * as Rx from 'rxjs';
-import fs from 'fs';
 
 // Midnight SDK imports
 import { httpClientProofProvider } from '@midnight-ntwrk/midnight-js-http-client-proof-provider';
@@ -20,7 +18,7 @@ import { HDWallet, Roles } from '@midnight-ntwrk/wallet-sdk-hd';
 import { ShieldedWallet } from '@midnight-ntwrk/wallet-sdk-shielded';
 import {
   createKeystore,
-  InMemoryTransactionHistoryStorage,
+  NoOpTransactionHistoryStorage,
   PublicKey,
   UnshieldedWallet,
 } from '@midnight-ntwrk/wallet-sdk-unshielded-wallet';
@@ -69,7 +67,7 @@ const buildUnshieldedConfig = (cfg: typeof CONFIG) => ({
     indexerHttpUrl: cfg.indexer,
     indexerWsUrl: cfg.indexerWS,
   },
-  txHistoryStorage: new InMemoryTransactionHistoryStorage(),
+  txHistoryStorage: new NoOpTransactionHistoryStorage(),
 });
 
 const buildDustConfig = (cfg: typeof CONFIG) => ({
@@ -94,30 +92,18 @@ export const zkConfigPath = path.resolve(__dirname, '../managed/ep-contract');
 
 export async function loadContractModule() {
   const contractPath = path.resolve(__dirname, '..', 'managed', 'ep-contract', 'contract', 'index.js');
-  if (!fs.existsSync(contractPath)) {
-    throw new Error(`Contract module not found at expected path: ${contractPath}`);
-  }
-  console.log(`Loading contract module from: ${contractPath}`);
   return await import(pathToFileURL(contractPath).href);
 }
 
 // ─── Wallet Functions 
 
 export function deriveKeys(seed: string) {
-  const trimmed = seed.trim();
-  const normalized = trimmed.toLowerCase().replace(/\s+/g, ' ');
+  const normalized = seed.trim().toLowerCase().replace(/\s+/g, ' ');
   const words = normalized.split(' ');
-
-  let seedBytes: Uint8Array;
-  if (words.length === 24) {
-    seedBytes = mnemonicToSeedSync(normalized);
-  } else if (/^[0-9a-fA-F]{64,128}$/.test(trimmed)) {
-    seedBytes = Buffer.from(trimmed, 'hex');
-  } else {
-    throw new Error('Wallet seed must be either a 24-word mnemonic phrase or a hex-encoded seed');
+  if (words.length !== 24) {
+    throw new Error('BACKEND_WALLET_SEED must be a 24-word mnemonic phrase');
   }
-
-  const hdWallet = HDWallet.fromSeed(seedBytes);
+  const hdWallet = HDWallet.fromSeed(mnemonicToSeedSync(normalized));
   if (hdWallet.type !== 'seedOk') throw new Error('Invalid seed');
 
   const result = hdWallet.hdWallet

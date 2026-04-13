@@ -24,8 +24,6 @@ export interface ProofGenerationResult {
   error?: string;
 }
 
-const PROOF_GENERATION_TIMEOUT_MS = Number(process.env.PROOF_GENERATION_TIMEOUT_MS ?? '180000');
-
 export class VerificationProof {
   async generateVerificationProof(params: ProofGenerationParams): Promise<ProofGenerationResult> {
     const backendSeed = process.env.BACKEND_WALLET_SEED;
@@ -56,6 +54,7 @@ export class VerificationProof {
       const tierThreshold = params.tierThreshold ?? params.amountToProve ?? 300;
       const thresholdBigInt = BigInt(Math.round(tierThreshold));
 
+      // 1-2. Fetch persisted backend wallet connection
       const walletCtx = BackendWalletManager.WalletCtx;
       const providers = BackendWalletManager.Providers;
 
@@ -98,7 +97,17 @@ export class VerificationProof {
       const salt = new Uint8Array(crypto.randomBytes(32));
       const reserveScore = BigInt(Math.round(reserveRatio));
 
-      // 5. Connect to the deployed contract
+      // 5. Sync wallet state before proof (CRITICAL — original working logic)
+      console.log('Synchronizing Midnight network nonces...');
+      await walletCtx.wallet.waitForSyncedState();
+      console.log('Wallet synchronization complete.');
+
+      if (global.gc) {
+        console.log('Forcing V8 Garbage Collection to free RAM for WASM Prover...');
+        global.gc();
+      }
+
+      // 6. Connect to the deployed contract
       console.log('Connecting to deployed contract...');
       const privateStateId = `epContractState_${requestIdBytes.toString('hex')}`;
       const deployedContract = await (findDeployedContract as any)(providers, {
@@ -111,21 +120,14 @@ export class VerificationProof {
         },
       });
 
-      // 6. Call the proveReserveStatus circuit — this creates and submits a TX
+      // 7. Call the proveReserveStatus circuit — NO TIMEOUT, let it finish naturally
       console.log(`Generating ZK proof with thresholdBigInt: ${thresholdBigInt}, reserveScore: ${reserveScore}`);
-      const result = await Promise.race([
-        deployedContract.callTx.proveReserveStatus(
-          thresholdBigInt,
-          requestId,
-        ),
-        new Promise<never>((_, reject) => {
-          setTimeout(() => {
-            reject(new Error(`Proof generation timed out after ${PROOF_GENERATION_TIMEOUT_MS}ms`));
-          }, PROOF_GENERATION_TIMEOUT_MS);
-        }),
-      ]);
+      const result = await deployedContract.callTx.proveReserveStatus(
+        thresholdBigInt,
+        requestId,
+      );
 
-      // 7. Extract TX hash from the result
+      // 8. Extract TX hash from the result
       const txHash = (result as any)?.txHash
         ?? (result as any)?.public?.txHash
         ?? (result as any)?.deployTxData?.public?.txHash
