@@ -48,9 +48,7 @@ class BackendWalletManagerImpl {
     this.walletCtx = await createMidnightWallet(this.seed);
     console.log('Syncing with Midnight Network...');
 
-    // Only wait for Unshielded sync — Dust isStrictlyComplete() never returns
-    // true on Azure because the scanner can't keep up with new blocks.
-    // The SDK handles Dust balancing internally during proof generation.
+    // Step 1: Wait for Unshielded sync (fast — ~3 seconds)
     await Rx.firstValueFrom(
       this.walletCtx.wallet.state().pipe(
         Rx.throttleTime(3000),
@@ -62,6 +60,31 @@ class BackendWalletManagerImpl {
         Rx.filter((s: any) => s.unshielded?.progress?.isStrictlyComplete?.() === true),
       ),
     );
+    console.log('Unshielded sync complete.');
+
+    // Step 2: Wait for Dust wallet to discover tDUST balance (up to 2 min)
+    // We do NOT wait for isStrictlyComplete (never finishes on Azure).
+    // We just wait until the wallet finds a non-zero tDUST balance.
+    console.log('Waiting for Dust wallet to discover tDUST balance...');
+    try {
+      await Rx.firstValueFrom(
+        this.walletCtx.wallet.state().pipe(
+          Rx.throttleTime(5000),
+          Rx.tap((s: any) => {
+            const bal = s.dust?.walletBalance?.(new Date());
+            console.log(`[Dust Balance] ${bal ?? 'unknown'}`);
+          }),
+          Rx.filter((s: any) => {
+            const bal = s.dust?.walletBalance?.(new Date());
+            return typeof bal === 'bigint' && bal > 0n;
+          }),
+          Rx.timeout(120000),
+        ),
+      );
+      console.log('Dust wallet has tDUST — ready for transactions.');
+    } catch (e) {
+      console.warn('Dust balance not found within 2 minutes. Proof generation may fail with Insufficient Funds.');
+    }
 
     this.providers = await createProviders(this.walletCtx);
     console.log('Providers created successfully.');
