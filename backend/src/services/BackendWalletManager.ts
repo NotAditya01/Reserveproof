@@ -48,42 +48,39 @@ class BackendWalletManagerImpl {
     this.walletCtx = await createMidnightWallet(this.seed);
     console.log('Syncing with Midnight Network...');
 
-    // Step 1: Wait for Unshielded sync (fast — ~3 seconds)
-    await Rx.firstValueFrom(
-      this.walletCtx.wallet.state().pipe(
-        Rx.throttleTime(3000),
-        Rx.tap((s: any) => {
-          const uSync = s.unshielded?.progress?.isStrictlyComplete?.() === true;
-          const dSync = s.dust?.progress?.isStrictlyComplete?.() === true;
-          console.log(`[Wallet Sync] Unshielded: ${uSync} | Dust: ${dSync}`);
-        }),
-        Rx.filter((s: any) => s.unshielded?.progress?.isStrictlyComplete?.() === true),
-      ),
-    );
-    console.log('Unshielded sync complete.');
+    // The Midnight SDK REQUIRES a full sync to discover UTXOs (including tDUST).
+    // Without this, balanceUnboundTransaction will fail with 'Insufficient Funds'
+    // even if you have tDUST on-chain. This is confirmed by Midnight docs.
+    //
+    // On a 4-core Azure P2V3, this takes ~2-5 minutes on a cold start.
+    // We give it up to 10 minutes. The server is already listening (Azure won't kill us).
+    const syncStart = Date.now();
 
-    // Step 2: Wait for Dust wallet to discover tDUST balance (up to 2 min)
-    // We do NOT wait for isStrictlyComplete (never finishes on Azure).
-    // We just wait until the wallet finds a non-zero tDUST balance.
-    console.log('Waiting for Dust wallet to discover tDUST balance...');
+    // Log progress every 10 seconds so we can see it's working
+    const progressSub = this.walletCtx.wallet.state().pipe(
+      Rx.throttleTime(10000),
+    ).subscribe((s: any) => {
+      const uSync = s.unshielded?.progress?.isStrictlyComplete?.() === true;
+      const dSync = s.dust?.progress?.isStrictlyComplete?.() === true;
+      const elapsed = ((Date.now() - syncStart) / 1000).toFixed(0);
+      console.log(`[Wallet Sync ${elapsed}s] Unshielded: ${uSync} | Dust: ${dSync}`);
+    });
+
     try {
-      await Rx.firstValueFrom(
-        this.walletCtx.wallet.state().pipe(
-          Rx.throttleTime(5000),
-          Rx.tap((s: any) => {
-            const bal = s.dust?.walletBalance?.(new Date());
-            console.log(`[Dust Balance] ${bal ?? 'unknown'}`);
-          }),
-          Rx.filter((s: any) => {
-            const bal = s.dust?.walletBalance?.(new Date());
-            return typeof bal === 'bigint' && bal > 0n;
-          }),
-          Rx.timeout(120000),
+      await Promise.race([
+        this.walletCtx.wallet.waitForSyncedState(),
+        new Promise((_, reject) =>
+          setTimeout(() => reject(new Error('Wallet sync timed out after 10 minutes')), 600000)
         ),
-      );
-      console.log('Dust wallet has tDUST — ready for transactions.');
+      ]);
+      const elapsed = ((Date.now() - syncStart) / 1000).toFixed(1);
+      console.log(`Full wallet sync complete in ${elapsed}s.`);
     } catch (e) {
-      console.warn('Dust balance not found within 2 minutes. Proof generation may fail with Insufficient Funds.');
+      const elapsed = ((Date.now() - syncStart) / 1000).toFixed(1);
+      console.warn(`Wallet sync warning after ${elapsed}s: ${e instanceof Error ? e.message : String(e)}`);
+      console.warn('Will attempt to proceed — proof generation may fail if tDUST UTXOs were not found.');
+    } finally {
+      progressSub.unsubscribe();
     }
 
     this.providers = await createProviders(this.walletCtx);
@@ -104,6 +101,7 @@ class BackendWalletManagerImpl {
         setTimeout(async () => {
           try {
             await this.connect();
+            this.isReady = true;
             console.log('Wallet reconnected.');
             this.isReconnecting = false;
           } catch (e) {
@@ -119,6 +117,7 @@ class BackendWalletManagerImpl {
         setTimeout(async () => {
           try {
             await this.connect();
+            this.isReady = true;
             console.log('Wallet reconnected.');
             this.isReconnecting = false;
           } catch (e) {

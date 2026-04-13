@@ -97,7 +97,11 @@ export class VerificationProof {
       const salt = new Uint8Array(crypto.randomBytes(32));
       const reserveScore = BigInt(Math.round(reserveRatio));
 
-
+      // Free memory before heavy WASM proof generation
+      if (global.gc) {
+        console.log('Forcing V8 Garbage Collection to free RAM for WASM Prover...');
+        global.gc();
+      }
 
       // 6. Connect to the deployed contract
       console.log('Connecting to deployed contract...');
