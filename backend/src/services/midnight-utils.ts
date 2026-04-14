@@ -58,7 +58,7 @@ const buildShieldedConfig = (cfg: typeof CONFIG) => ({
     indexerWsUrl: cfg.indexerWS,
   },
   provingServerUrl: new URL(cfg.proofServer),
-  relayURL: new URL(cfg.node), // Use HTTP, WS is disabled on public node
+  relayURL: new URL(cfg.node.replace(/^http/, 'ws')),
 });
 
 const buildUnshieldedConfig = (cfg: typeof CONFIG) => ({
