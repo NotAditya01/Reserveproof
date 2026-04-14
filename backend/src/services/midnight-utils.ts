@@ -228,7 +228,7 @@ export async function createProviders(
       }
 
       console.log('[balanceTx] Finalizing recipe...');
-      const finalized = walletCtx.wallet.finalizeRecipe(recipe) as any;
+      const finalized = await walletCtx.wallet.finalizeRecipe(recipe) as any;
       console.log('[balanceTx] Done.');
       return finalized;
     },
