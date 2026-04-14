@@ -80,7 +80,7 @@ class BackendWalletManagerImpl {
       //
       // state.isSynced is the SDK's own high-level flag that accounts for this.
       // This is what deploy.ts uses and it WORKS.
-      const SYNC_TIMEOUT_MS = 600000; // 10 minutes
+      const SYNC_TIMEOUT_MS = 3600000; // 60 minutes (let it take its time to scan all blocks)
       console.log(`Waiting for wallet isSynced (timeout: ${SYNC_TIMEOUT_MS / 60000} min)...`);
 
       const syncedState: any = await Promise.race([
