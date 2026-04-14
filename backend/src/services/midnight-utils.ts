@@ -193,10 +193,10 @@ export async function createProviders(
   const state = await Rx.firstValueFrom(
     walletCtx.wallet.state().pipe(
       Rx.throttleTime(3000),
-      Rx.filter((s: any) => s.isSynced === true),
-      Rx.timeout(120000),
+      Rx.filter((s: any) => s.unshielded?.progress?.isStrictlyComplete?.() === true),
+      Rx.timeout(60000),
       Rx.catchError((err) => {
-        console.warn('createProviders: isSynced not reached in 120s, using current state...', err.message);
+        console.warn('Initial wallet sync reached 60s timeout, proceeding with current state...', err.message);
         return walletCtx.wallet.state().pipe(Rx.first());
       })
     ),
@@ -228,30 +228,14 @@ export async function createProviders(
       }
 
       console.log('[balanceTx] Finalizing recipe...');
-      const finalized = await walletCtx.wallet.finalizeRecipe(recipe) as any;
+      const finalized = walletCtx.wallet.finalizeRecipe(recipe) as any;
       console.log('[balanceTx] Done.');
       return finalized;
     },
 
     submitTx: (tx: any) => {
-      console.log('[submitTx] Submitting transaction to chain (fire-and-forget)...');
-      // IMPORTANT: wallet.submitTransaction() submits the TX to the node via the indexer
-      // GraphQL mutation, then waits for on-chain confirmation via indexer WebSocket.
-      // The confirmation subscription hangs on Azure because the WS connection drops.
-      // The TX IS successfully submitted — just the confirmation wait fails.
-      //
-      // Solution: fire-and-forget. Submit in background, return immediately.
-      const submitPromise = walletCtx.wallet.submitTransaction(tx);
-      submitPromise
-        .then((result: any) => {
-          console.log('[submitTx] ✓ Transaction confirmed on-chain!');
-        })
-        .catch((err: any) => {
-          console.error('[submitTx] ✗ Background submission error:', err?.message || err);
-        });
-
-      console.log('[submitTx] TX dispatched to network. Returning immediately.');
-      return tx;
+      console.log('[submitTx] Submitting transaction to chain...');
+      return walletCtx.wallet.submitTransaction(tx) as any;
     },
   };
 
