@@ -255,6 +255,7 @@ export async function createProviders(
         }
 
         console.log(`[submitTx] Serialized TX: ${txHex.length} chars`);
+        console.log(`[submitTx] Submitting to node: ${CONFIG.node}`);
 
         // Submit via HTTP JSON-RPC POST (bypasses broken WebSocket relay)
         const response = await fetch(CONFIG.node, {
@@ -268,7 +269,15 @@ export async function createProviders(
           }),
         });
 
-        const result = await response.json() as any;
+        const responseText = await response.text();
+        console.log(`[submitTx] Response status: ${response.status} | Length: ${responseText.length}`);
+
+        if (!response.ok || responseText.startsWith('<')) {
+          console.error(`[submitTx] Non-JSON response (first 500 chars):`, responseText.slice(0, 500));
+          throw new Error(`Node returned HTTP ${response.status}: ${responseText.slice(0, 200)}`);
+        }
+
+        const result = JSON.parse(responseText) as any;
         const elapsed = ((Date.now() - submitStart) / 1000).toFixed(1);
 
         if (result.error) {
