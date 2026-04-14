@@ -19,10 +19,12 @@ import { ShieldedWallet } from '@midnight-ntwrk/wallet-sdk-shielded';
 import {
   createKeystore,
   NoOpTransactionHistoryStorage,
+  InMemoryTransactionHistoryStorage,
   PublicKey,
   UnshieldedWallet,
 } from '@midnight-ntwrk/wallet-sdk-unshielded-wallet';
 import { mnemonicToSeedSync } from '@scure/bip39';
+import fs from 'fs';
 
 // Enable WebSocket for GraphQL subscriptions
 // @ts-expect-error Required for wallet sync in Node.js
@@ -61,13 +63,27 @@ const buildShieldedConfig = (cfg: typeof CONFIG) => ({
   relayURL: new URL(cfg.node.replace(/^http/, 'ws')),
 });
 
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+
+// Setup Local Persistent Storage (Fast Azure Syncs)
+const storageDir = path.resolve(__dirname, '../../../midnight-storage');
+if (!fs.existsSync(storageDir)) fs.mkdirSync(storageDir, { recursive: true });
+
+const unshieldedPath = path.join(storageDir, 'unshielded.json');
+const shieldedPath = path.join(storageDir, 'shielded.json');
+const dustPath = path.join(storageDir, 'dust.json');
+
+const unshieldedStorage = fs.existsSync(unshieldedPath)
+  ? InMemoryTransactionHistoryStorage.fromSerialized(fs.readFileSync(unshieldedPath, 'utf8'))
+  : new InMemoryTransactionHistoryStorage();
+
 const buildUnshieldedConfig = (cfg: typeof CONFIG) => ({
   networkId: getNetworkId(),
   indexerClientConnection: {
     indexerHttpUrl: cfg.indexer,
     indexerWsUrl: cfg.indexerWS,
   },
-  txHistoryStorage: new NoOpTransactionHistoryStorage(),
+  txHistoryStorage: unshieldedStorage,
 });
 
 const buildDustConfig = (cfg: typeof CONFIG) => ({
@@ -84,9 +100,7 @@ const buildDustConfig = (cfg: typeof CONFIG) => ({
   relayURL: new URL(cfg.node.replace(/^http/, 'ws')),
 });
 
-
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-export const zkConfigPath = path.resolve(__dirname, '../managed/ep-contract');
+export const zkConfigPath = path.resolve(__dirname, '../../managed/ep-contract');
 
 // ─── Contract Loading 
 
@@ -131,14 +145,30 @@ export async function createMidnightWallet(seed: string) {
 
   const wallet = await WalletFacade.init({
     configuration: walletConfig,
-    shielded: (cfg) => ShieldedWallet(cfg).startWithSecretKeys(shieldedSecretKeys),
+    shielded: (cfg) => {
+      if (fs.existsSync(shieldedPath)) return ShieldedWallet(cfg).restore(fs.readFileSync(shieldedPath, 'utf8'));
+      return ShieldedWallet(cfg).startWithSecretKeys(shieldedSecretKeys);
+    },
     unshielded: (cfg) => UnshieldedWallet(cfg).startWithPublicKey(PublicKey.fromKeyStore(unshieldedKeystore)),
-    dust: (cfg) =>
-      DustWallet(cfg).startWithSecretKey(dustSecretKey, ledger.LedgerParameters.initialParameters().dust),
+    dust: (cfg) => {
+      if (fs.existsSync(dustPath)) return DustWallet(cfg).restore(fs.readFileSync(dustPath, 'utf8'));
+      return DustWallet(cfg).startWithSecretKey(dustSecretKey, ledger.LedgerParameters.initialParameters().dust);
+    },
   });
   await wallet.start(shieldedSecretKeys, dustSecretKey);
 
-  return { wallet, shieldedSecretKeys, dustSecretKey, unshieldedKeystore };
+  return { wallet, shieldedSecretKeys, dustSecretKey, unshieldedKeystore, unshieldedStorage };
+}
+
+// Background persist routine
+export async function persistWalletState(ctx: Awaited<ReturnType<typeof createMidnightWallet>>) {
+  try {
+    fs.writeFileSync(shieldedPath, await ctx.wallet.shielded.serializeState(), 'utf8');
+    fs.writeFileSync(dustPath, await ctx.wallet.dust.serializeState(), 'utf8');
+    fs.writeFileSync(unshieldedPath, (ctx.unshieldedStorage as any).serialize(), 'utf8');
+  } catch (err) {
+    console.error('Failed to persist wallet state:', err);
+  }
 }
 
 
@@ -238,10 +268,6 @@ export async function createProviders(
       const submitStart = Date.now();
 
       try {
-        // Now that the Dust wallet is perfectly synced (100% valid inputs),
-        // we can safely use the SDK's built-in WebSocket submitter which handles
-        // payload fragmentation automatically, bypassing the 8KB HTTP limit!
-        
         const result = await Promise.race([
           walletCtx.wallet.submitTransaction(tx),
           new Promise((_, reject) =>

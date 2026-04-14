@@ -135,12 +135,8 @@ export class VerificationProof {
       );
       console.log('[Proof] Step 3: Done — contract found.');
 
-      // 5. Call the proveReserveStatus circuit — ZK proof + balance + submit
-      //    This is where the SDK: (a) generates unbound TX, (b) calls proof server,
-      //    (c) calls balanceTx (needs tDUST!), (d) submits to chain.
-      //    We add a 7-minute timeout because ZK proof generation is legitimately slow.
+      // 5. Call the proveReserveStatus circuit
       console.log(`[Proof] Step 4: Calling proveReserveStatus(threshold=${thresholdBigInt}, score=${reserveScore})...`);
-      console.log('[Proof] This involves: ZK proof generation → balanceTx (needs tDUST) → submit TX');
       const proofStart = Date.now();
 
       const PROOF_TIMEOUT_MS = 420000; // 7 minutes

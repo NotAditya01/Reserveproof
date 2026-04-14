@@ -1,6 +1,6 @@
 import * as Rx from 'rxjs';
 import * as ledger from '@midnight-ntwrk/ledger-v8';
-import { createMidnightWallet, createProviders } from './midnight-utils.js';
+import { createMidnightWallet, createProviders, persistWalletState } from './midnight-utils.js';
 
 class BackendWalletManagerImpl {
   private walletCtx: any = null;
@@ -53,33 +53,8 @@ class BackendWalletManagerImpl {
 
     const syncStart = Date.now();
 
-    // Log progress every 15 seconds — include ALL three wallet components
-    const progressSub = this.walletCtx.wallet.state().pipe(
-      Rx.throttleTime(15000),
-    ).subscribe((s: any) => {
-      const elapsed = ((Date.now() - syncStart) / 1000).toFixed(0);
-      const uSync = s.unshielded?.progress?.isStrictlyComplete?.() === true;
-      const sSync = s.shielded?.progress?.isStrictlyComplete?.() === true;
-      const dSync = s.dust?.progress?.isStrictlyComplete?.() === true;
-      const isSynced = s.isSynced === true;
-      let dustBal = 'n/a';
-      try {
-        const b = s.dust?.walletBalance?.(new Date());
-        if (b !== undefined && b !== null) dustBal = String(b);
-      } catch { /* ignore */ }
-      console.log(`[Sync ${elapsed}s] isSynced: ${isSynced} | Unshielded: ${uSync} | Shielded: ${sSync} | Dust: ${dSync} | DustBal: ${dustBal}`);
-    });
-
+    // Wait for the SDK to confirm full sync
     try {
-      // Use state.isSynced instead of isStrictlyComplete().
-      //
-      // CRITICAL FIX: The "idle chain" bug causes dust.progress.isStrictlyComplete()
-      // to NEVER return true on low-activity chains (like preprod).
-      // The dust wallet waits for new blocks to confirm it has reached the chain tip,
-      // but on idle chains, those blocks never come.
-      //
-      // state.isSynced is the SDK's own high-level flag that accounts for this.
-      // This is what deploy.ts uses and it WORKS.
       const SYNC_TIMEOUT_MS = 3600000; // 60 minutes (let it take its time to scan all blocks)
       console.log(`Waiting for wallet isSynced (timeout: ${SYNC_TIMEOUT_MS / 60000} min)...`);
 
@@ -98,6 +73,14 @@ class BackendWalletManagerImpl {
       const elapsed = ((Date.now() - syncStart) / 1000).toFixed(1);
       console.log(`✓ Wallet fully synced (isSynced=true) in ${elapsed}s.`);
 
+      // Persist the expensive genesis sync to disk immediately
+      await persistWalletState(this.walletCtx);
+
+      // Persist state periodically in the background
+      setInterval(() => {
+        persistWalletState(this.walletCtx).catch(err => console.error('[persist] failed:', err));
+      }, 5 * 60 * 1000); // Every 5 minutes
+
       // Log balances
       try {
         const nightBalance = syncedState.unshielded?.balances?.[ledger.unshieldedToken().raw] ?? 0n;
@@ -112,8 +95,6 @@ class BackendWalletManagerImpl {
       console.error(`✗ Wallet sync failed after ${elapsed}s: ${e instanceof Error ? e.message : String(e)}`);
       console.warn('⚠ Proof generation will fail: dust UTXOs not discoverable.');
       console.warn(`→ Wallet address: ${walletAddress}`);
-    } finally {
-      progressSub.unsubscribe();
     }
 
     this.providers = await createProviders(this.walletCtx);
@@ -123,7 +104,7 @@ class BackendWalletManagerImpl {
     if (this.stateSubscription) this.stateSubscription.unsubscribe();
 
     this.stateSubscription = this.walletCtx.wallet.state().subscribe({
-      next: (_state: any) => {},
+      next: (_state: any) => { },
       error: async (err: any) => {
         if (this.isReconnecting) return;
         this.isReconnecting = true;
