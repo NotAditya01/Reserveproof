@@ -186,6 +186,15 @@ function evaluateAttribute(
 }
 
 reserveRouter.post('/attest', async (req: Request, res: Response) => {
+  // Guard: Ensure wallet is synced
+  const { BackendWalletManager } = await import('../services/BackendWalletManager.js');
+  if (!BackendWalletManager.isReady) {
+    return res.status(503).json({ 
+      error: 'Backend wallet is still syncing with Midnight network. Please try again in a moment.',
+      retryAfterSeconds: 30
+    });
+  }
+
   const {
     walletAddress,
     protocolName,
@@ -299,9 +308,13 @@ reserveRouter.post('/attest', async (req: Request, res: Response) => {
       reserveRatio: proofScore,
       tierThreshold: threshold,
     });
-    
+
     const durationSec = ((Date.now() - startTime) / 1000).toFixed(2);
-    console.log(`[API] ZK proof generated successfully in ${durationSec}s.`);
+    if (proofResult.success) {
+      console.log(`[API] ZK proof generated successfully in ${durationSec}s.`);
+    } else {
+      console.warn(`[API] ZK proof generation failed after ${durationSec}s: ${proofResult.error}`);
+    }
   } catch (runtimeError) {
     const message = runtimeError instanceof Error ? runtimeError.message : String(runtimeError);
     console.error(`[API] ZK proof generation/submission error: ${message}`);

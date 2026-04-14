@@ -19,10 +19,12 @@ import { ShieldedWallet } from '@midnight-ntwrk/wallet-sdk-shielded';
 import {
   createKeystore,
   NoOpTransactionHistoryStorage,
+  InMemoryTransactionHistoryStorage,
   PublicKey,
   UnshieldedWallet,
 } from '@midnight-ntwrk/wallet-sdk-unshielded-wallet';
 import { mnemonicToSeedSync } from '@scure/bip39';
+import fs from 'fs';
 
 // Enable WebSocket for GraphQL subscriptions
 // @ts-expect-error Required for wallet sync in Node.js
@@ -61,13 +63,27 @@ const buildShieldedConfig = (cfg: typeof CONFIG) => ({
   relayURL: new URL(cfg.node.replace(/^http/, 'ws')),
 });
 
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+
+// Setup Local Persistent Storage (Fast Azure Syncs)
+const storageDir = path.resolve(__dirname, '../../../midnight-storage');
+if (!fs.existsSync(storageDir)) fs.mkdirSync(storageDir, { recursive: true });
+
+const unshieldedPath = path.join(storageDir, 'unshielded.json');
+const shieldedPath = path.join(storageDir, 'shielded.json');
+const dustPath = path.join(storageDir, 'dust.json');
+
+const unshieldedStorage = fs.existsSync(unshieldedPath)
+  ? InMemoryTransactionHistoryStorage.fromSerialized(fs.readFileSync(unshieldedPath, 'utf8'))
+  : new InMemoryTransactionHistoryStorage();
+
 const buildUnshieldedConfig = (cfg: typeof CONFIG) => ({
   networkId: getNetworkId(),
   indexerClientConnection: {
     indexerHttpUrl: cfg.indexer,
     indexerWsUrl: cfg.indexerWS,
   },
-  txHistoryStorage: new NoOpTransactionHistoryStorage(),
+  txHistoryStorage: unshieldedStorage,
 });
 
 const buildDustConfig = (cfg: typeof CONFIG) => ({
@@ -84,9 +100,7 @@ const buildDustConfig = (cfg: typeof CONFIG) => ({
   relayURL: new URL(cfg.node.replace(/^http/, 'ws')),
 });
 
-
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-export const zkConfigPath = path.resolve(__dirname, '../managed/ep-contract');
+export const zkConfigPath = path.resolve(__dirname, '../../managed/ep-contract');
 
 // ─── Contract Loading 
 
@@ -131,14 +145,30 @@ export async function createMidnightWallet(seed: string) {
 
   const wallet = await WalletFacade.init({
     configuration: walletConfig,
-    shielded: (cfg) => ShieldedWallet(cfg).startWithSecretKeys(shieldedSecretKeys),
+    shielded: (cfg) => {
+      if (fs.existsSync(shieldedPath)) return ShieldedWallet(cfg).restore(fs.readFileSync(shieldedPath, 'utf8'));
+      return ShieldedWallet(cfg).startWithSecretKeys(shieldedSecretKeys);
+    },
     unshielded: (cfg) => UnshieldedWallet(cfg).startWithPublicKey(PublicKey.fromKeyStore(unshieldedKeystore)),
-    dust: (cfg) =>
-      DustWallet(cfg).startWithSecretKey(dustSecretKey, ledger.LedgerParameters.initialParameters().dust),
+    dust: (cfg) => {
+      if (fs.existsSync(dustPath)) return DustWallet(cfg).restore(fs.readFileSync(dustPath, 'utf8'));
+      return DustWallet(cfg).startWithSecretKey(dustSecretKey, ledger.LedgerParameters.initialParameters().dust);
+    },
   });
   await wallet.start(shieldedSecretKeys, dustSecretKey);
 
-  return { wallet, shieldedSecretKeys, dustSecretKey, unshieldedKeystore };
+  return { wallet, shieldedSecretKeys, dustSecretKey, unshieldedKeystore, unshieldedStorage };
+}
+
+// Background persist routine
+export async function persistWalletState(ctx: Awaited<ReturnType<typeof createMidnightWallet>>) {
+  try {
+    fs.writeFileSync(shieldedPath, await ctx.wallet.shielded.serializeState(), 'utf8');
+    fs.writeFileSync(dustPath, await ctx.wallet.dust.serializeState(), 'utf8');
+    fs.writeFileSync(unshieldedPath, (ctx.unshieldedStorage as any).serialize(), 'utf8');
+  } catch (err) {
+    console.error('Failed to persist wallet state:', err);
+  }
 }
 
 
@@ -194,6 +224,11 @@ export async function createProviders(
     walletCtx.wallet.state().pipe(
       Rx.throttleTime(3000),
       Rx.filter((s: any) => s.unshielded?.progress?.isStrictlyComplete?.() === true),
+      Rx.timeout(60000),
+      Rx.catchError((err) => {
+        console.warn('Initial wallet sync reached 60s timeout, proceeding with current state...', err.message);
+        return walletCtx.wallet.state().pipe(Rx.first());
+      })
     ),
   );
 
@@ -202,6 +237,8 @@ export async function createProviders(
     getEncryptionPublicKey: () => (state as any).shielded.encryptionPublicKey.toHexString(),
 
     async balanceTx(tx: any, ttl?: Date) {
+      console.log('[balanceTx] Starting — calling balanceUnboundTransaction...');
+      const balanceStart = Date.now();
       const recipe = await walletCtx.wallet.balanceUnboundTransaction(
         tx,
         {
@@ -210,6 +247,7 @@ export async function createProviders(
         },
         { ttl: ttl ?? new Date(Date.now() + 30 * 60 * 1000) },
       );
+      console.log(`[balanceTx] balanceUnboundTransaction done in ${((Date.now() - balanceStart) / 1000).toFixed(1)}s`);
 
       const signFn = (payload: Uint8Array) =>
         walletCtx.unshieldedKeystore.signData(payload);
@@ -219,10 +257,33 @@ export async function createProviders(
         signTransactionIntents(recipe.balancingTransaction, signFn, 'pre-proof');
       }
 
-      return walletCtx.wallet.finalizeRecipe(recipe) as any;
+      console.log('[balanceTx] Finalizing recipe...');
+      const finalized = walletCtx.wallet.finalizeRecipe(recipe) as any;
+      console.log('[balanceTx] Done.');
+      return finalized;
     },
 
-    submitTx: (tx: any) => walletCtx.wallet.submitTransaction(tx) as any,
+    submitTx: async (tx: any) => {
+      console.log(`[submitTx] Submitting transaction to chain via WebSocket...`);
+      const submitStart = Date.now();
+
+      try {
+        const result = await Promise.race([
+          walletCtx.wallet.submitTransaction(tx),
+          new Promise((_, reject) =>
+            setTimeout(() => reject(new Error('submitTransaction timed out waiting for block confirmation.')), 120000)
+          ),
+        ]);
+
+        const elapsed = ((Date.now() - submitStart) / 1000).toFixed(1);
+        console.log(`[submitTx] ✓ Transaction confirmed in ${elapsed}s`);
+        return result as any;
+      } catch (error: any) {
+        const elapsed = ((Date.now() - submitStart) / 1000).toFixed(1);
+        console.error(`[submitTx] ✗ Failed after ${elapsed}s:`, error.message || error);
+        throw error;
+      }
+    },
   };
 
   const zkConfigProvider = new NodeZkConfigProvider(zkConfigPath);
