@@ -234,63 +234,28 @@ export async function createProviders(
     },
 
     submitTx: async (tx: any) => {
-      console.log('[submitTx] Submitting transaction to chain via HTTP JSON-RPC...');
+      console.log(`[submitTx] Submitting transaction to chain via WebSocket...`);
       const submitStart = Date.now();
+
       try {
-        // Serialize the finalized transaction to hex
-        let txHex: string;
-        if (typeof tx.serialize === 'function') {
-          const serialized = tx.serialize();
-          txHex = '0x' + Buffer.from(serialized).toString('hex');
-        } else if (typeof tx === 'string') {
-          txHex = tx.startsWith('0x') ? tx : '0x' + tx;
-        } else if (tx instanceof Uint8Array || Buffer.isBuffer(tx)) {
-          txHex = '0x' + Buffer.from(tx).toString('hex');
-        } else {
-          // Log the TX structure for debugging and fall back to SDK submit
-          console.log('[submitTx] TX type:', typeof tx, '| Constructor:', tx?.constructor?.name);
-          console.log('[submitTx] TX keys:', tx ? Object.keys(tx).slice(0, 15).join(', ') : 'null');
-          console.log('[submitTx] Falling back to wallet.submitTransaction (may hang)...');
-          return walletCtx.wallet.submitTransaction(tx) as any;
-        }
+        // Now that the Dust wallet is perfectly synced (100% valid inputs),
+        // we can safely use the SDK's built-in WebSocket submitter which handles
+        // payload fragmentation automatically, bypassing the 8KB HTTP limit!
+        
+        const result = await Promise.race([
+          walletCtx.wallet.submitTransaction(tx),
+          new Promise((_, reject) =>
+            setTimeout(() => reject(new Error('submitTransaction timed out waiting for block confirmation.')), 120000)
+          ),
+        ]);
 
-        console.log(`[submitTx] Serialized TX: ${txHex.length} chars`);
-        console.log(`[submitTx] Submitting to node: ${CONFIG.node}`);
-
-        // Submit via HTTP JSON-RPC POST (bypasses broken WebSocket relay)
-        const response = await fetch(CONFIG.node, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            jsonrpc: '2.0',
-            method: 'author_submitExtrinsic',
-            params: [txHex],
-            id: Date.now(),
-          }),
-        });
-
-        const responseText = await response.text();
-        console.log(`[submitTx] Response status: ${response.status} | Length: ${responseText.length}`);
-
-        if (!response.ok || responseText.startsWith('<')) {
-          console.error(`[submitTx] Non-JSON response (first 500 chars):`, responseText.slice(0, 500));
-          throw new Error(`Node returned HTTP ${response.status}: ${responseText.slice(0, 200)}`);
-        }
-
-        const result = JSON.parse(responseText) as any;
         const elapsed = ((Date.now() - submitStart) / 1000).toFixed(1);
-
-        if (result.error) {
-          console.error(`[submitTx] ✗ Node rejected TX after ${elapsed}s:`, result.error);
-          throw new Error(`Node rejected TX: ${JSON.stringify(result.error)}`);
-        }
-
-        console.log(`[submitTx] ✓ TX accepted by node in ${elapsed}s. Hash: ${result.result}`);
-        return { txHash: result.result, ...tx };
-      } catch (err: any) {
+        console.log(`[submitTx] ✓ Transaction confirmed in ${elapsed}s`);
+        return result as any;
+      } catch (error: any) {
         const elapsed = ((Date.now() - submitStart) / 1000).toFixed(1);
-        console.error(`[submitTx] ✗ Failed after ${elapsed}s:`, err?.message || err);
-        throw err;
+        console.error(`[submitTx] ✗ Failed after ${elapsed}s:`, error.message || error);
+        throw error;
       }
     },
   };
