@@ -100,12 +100,16 @@ const buildDustConfig = (cfg: typeof CONFIG) => ({
   relayURL: new URL(cfg.node.replace(/^http/, 'ws')),
 });
 
-export const zkConfigPath = path.resolve(__dirname, '../../managed/ep-contract');
+const isDist = __dirname.endsWith('dist/services') || __dirname.endsWith('dist\\services');
+
+export const zkConfigPath = isDist
+  ? path.resolve(__dirname, '../managed/ep-contract')
+  : path.resolve(__dirname, '../../../contracts/managed/ep-contract');
 
 // ─── Contract Loading 
 
 export async function loadContractModule() {
-  const contractPath = path.resolve(__dirname, '..', 'managed', 'ep-contract', 'contract', 'index.js');
+  const contractPath = path.join(zkConfigPath, 'contract', 'index.js');
   return await import(pathToFileURL(contractPath).href);
 }
 
