@@ -233,25 +233,25 @@ export async function createProviders(
       return finalized;
     },
 
-    submitTx: async (tx: any) => {
-      console.log('[submitTx] Submitting transaction to chain...');
-      const submitStart = Date.now();
-      try {
-        const result = await Promise.race([
-          walletCtx.wallet.submitTransaction(tx),
-          new Promise((_, reject) =>
-            setTimeout(() => reject(new Error(
-              'submitTransaction timed out after 2 minutes waiting for block confirmation.'
-            )), 120000)
-          ),
-        ]);
-        console.log(`[submitTx] ✓ Transaction confirmed in ${((Date.now() - submitStart) / 1000).toFixed(1)}s`);
-        return result as any;
-      } catch (err: any) {
-        const elapsed = ((Date.now() - submitStart) / 1000).toFixed(1);
-        console.error(`[submitTx] ✗ Failed after ${elapsed}s:`, err?.message || err);
-        throw err;
-      }
+    submitTx: (tx: any) => {
+      console.log('[submitTx] Submitting transaction to chain (fire-and-forget)...');
+      // IMPORTANT: wallet.submitTransaction() submits the TX to the node via the indexer
+      // GraphQL mutation, then waits for on-chain confirmation via indexer WebSocket.
+      // The confirmation subscription hangs on Azure because the WS connection drops.
+      // The TX IS successfully submitted — just the confirmation wait fails.
+      //
+      // Solution: fire-and-forget. Submit in background, return immediately.
+      const submitPromise = walletCtx.wallet.submitTransaction(tx);
+      submitPromise
+        .then((result: any) => {
+          console.log('[submitTx] ✓ Transaction confirmed on-chain!');
+        })
+        .catch((err: any) => {
+          console.error('[submitTx] ✗ Background submission error:', err?.message || err);
+        });
+
+      console.log('[submitTx] TX dispatched to network. Returning immediately.');
+      return tx;
     },
   };
 
